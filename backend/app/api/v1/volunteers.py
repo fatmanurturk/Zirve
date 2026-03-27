@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_current_user
 from app.db.base import get_db
@@ -62,7 +63,13 @@ async def create_profile(
     db.add(profile)
     await db.commit()
     await db.refresh(profile)
-    return _profile_to_response(profile)
+    result = await db.execute(
+        select(VolunteerProfile)
+        .options(selectinload(VolunteerProfile.equipment_list))
+        .where(VolunteerProfile.user_id == current_user.id)
+    )
+    loaded_profile = result.scalar_one()
+    return _profile_to_response(loaded_profile)
 
 
 @router.get("/volunteers/me/profile", response_model=VolunteerProfileResponse)
@@ -71,7 +78,9 @@ async def get_my_profile(
     current_user: CurrentUserDep,
 ) -> VolunteerProfileResponse:
     result = await db.execute(
-        select(VolunteerProfile).where(VolunteerProfile.user_id == current_user.id)
+        select(VolunteerProfile)
+        .options(selectinload(VolunteerProfile.equipment_list))
+        .where(VolunteerProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if profile is None:
@@ -86,7 +95,9 @@ async def update_my_profile(
     current_user: CurrentUserDep,
 ) -> VolunteerProfileResponse:
     result = await db.execute(
-        select(VolunteerProfile).where(VolunteerProfile.user_id == current_user.id)
+        select(VolunteerProfile)
+        .options(selectinload(VolunteerProfile.equipment_list))
+        .where(VolunteerProfile.user_id == current_user.id)
     )
     profile = result.scalar_one_or_none()
     if profile is None:

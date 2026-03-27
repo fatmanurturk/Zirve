@@ -18,8 +18,12 @@ export default function LoginPage() {
     try {
       await login(email, password);
       router.push("/events");
-    } catch {
-      setError("Email veya şifre hatalı.");
+    } catch (error: any) {
+      if (error.response?.data?.detail) {
+        setError(error.response.data.detail);
+      } else {
+        setError("Sunucuya bağlanılamadı veya bir hata oluştu. Lütfen tekrar deneyin.");
+      }
     }
   };
 

@@ -104,7 +104,7 @@ export default function ProfilePage() {
               <div className="text-xs text-gray-400 mb-1">Deneyim Seviyesi</div>
               <div className="text-sm font-medium text-gray-700 capitalize">
                 {profile.experience_level === "beginner" ? "Başlangıç" :
-                 profile.experience_level === "intermediate" ? "Orta" : "Uzman"}
+                  profile.experience_level === "intermediate" ? "Orta" : "Uzman"}
               </div>
             </div>
             {profile.city && (
@@ -152,22 +152,17 @@ export default function ProfilePage() {
       )}
 
       {!profile && user?.role === "volunteer" && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 text-center">
-          <p className="text-yellow-700 text-sm mb-4">Henüz gönüllü profiliniz yok.</p>
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center mb-6">
+          <div className="text-4xl mb-4">⛰️</div>
+          <h2 className="text-xl font-bold text-green-900 mb-2">Aramıza Hoş Geldin!</h2>
+          <p className="text-green-800 text-sm mb-6 max-w-md mx-auto">
+            Gönüllü olarak etkinliklere katılabilmen ve ekiplerle eşleşebilmen için öncelikle deneyim ve ekipman bilgilerini profilinize eklemelisin.
+          </p>
           <button
-            onClick={async () => {
-              try {
-                await api.post("/api/v1/volunteers/me/profile", {
-                  experience_level: "beginner",
-                });
-                router.refresh();
-              } catch {
-                alert("Profil oluşturulamadı.");
-              }
-            }}
-            className="bg-green-700 text-white px-6 py-2 rounded-lg text-sm hover:bg-green-800 transition"
+            onClick={() => router.push("/profile/setup")}
+            className="bg-green-700 text-white px-8 py-3 rounded-xl text-sm font-medium hover:bg-green-800 transition shadow-sm"
           >
-            Profil Oluştur
+            Profilini Tamamla
           </button>
         </div>
       )}

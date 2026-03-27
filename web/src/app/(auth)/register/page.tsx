@@ -27,8 +27,12 @@ export default function RegisterPage() {
     try {
       await register(form);
       router.push("/events");
-    } catch {
-      setError("Kayıt sırasında bir hata oluştu. Email zaten kullanımda olabilir.");
+    } catch (error: any) {
+      if (error.response?.data?.detail) {
+        setError(error.response.data.detail);
+      } else {
+        setError("Sunucuya bağlanılamadı veya bir hata oluştu. Lütfen tekrar deneyin.");
+      }
     }
   };
 

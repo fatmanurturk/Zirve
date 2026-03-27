@@ -156,7 +156,7 @@ async def my_applications(
     limit: int = 20,
 ) -> ApplicationListResponse:
     if current_user.role != UserRole.VOLUNTEER:
-        raise HTTPException(status_code=403, detail="Sadece gonulluler gorebilir.")
+        raise HTTPException(status_code=403, detail="Sadece gonulluler kendi basvurularini gorebilir.")
     query = select(Application).where(Application.volunteer_id == current_user.id)
     count_query = select(func.count()).select_from(Application).where(Application.volunteer_id == current_user.id)
     if app_status is not None:
@@ -192,7 +192,7 @@ async def checkin_application(
     if application is None:
         raise HTTPException(status_code=404, detail="Basvuru bulunamadi.")
     if application.status != ApplicationStatus.APPROVED:
-        raise HTTPException(status_code=400, detail="Sadece onaylanmis basvurular check-in yapilabilir.")
+        raise HTTPException(status_code=400, detail="Sadece onaylı basvurular check-in yapilabilir.")
     if application.checked_in:
         raise HTTPException(status_code=409, detail="Bu gonullu zaten check-in yapildi.")
     application.checked_in = True

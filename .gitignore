@@ -12,6 +12,10 @@ web/.env.local
 
 # Mac
 .DS_Store
+.vscode/
 
 # Docker
 *.log
+
+# Local env
+.env

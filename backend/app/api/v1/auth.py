@@ -28,7 +28,8 @@ async def register_user(
     user_in: UserRegister,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    result = await db.execute(select(User).where(User.email == user_in.email))
+    email = user_in.email.lower()
+    result = await db.execute(select(User).where(User.email == email))
     existing_user = result.scalar_one_or_none()
     if existing_user is not None:
         raise HTTPException(
@@ -37,7 +38,7 @@ async def register_user(
         )
 
     user = User(
-        email=user_in.email,
+        email=email,
         password_hash=hash_password(user_in.password),
         full_name=user_in.full_name,
         role=user_in.role,
@@ -60,7 +61,8 @@ async def login(
     credentials: UserLogin,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
-    result = await db.execute(select(User).where(User.email == credentials.email))
+    email = credentials.email.lower()
+    result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is None or not verify_password(credentials.password, user.password_hash):
         raise HTTPException(
