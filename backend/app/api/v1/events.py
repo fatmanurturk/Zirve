@@ -109,10 +109,15 @@ async def create_event(
     )
     organization = org_result.scalars().first()
     if organization is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Organizer has no organization",
+        # Organizasyonu olmayan organizatörlere otomatik varsayılan kurum oluştur
+        organization = Organization(
+            owner_id=current_user.id,
+            name=f"{current_user.full_name} Organizasyonu",
+            is_verified=False
         )
+        db.add(organization)
+        await db.commit()
+        await db.refresh(organization)
 
     event = Event(
         organization_id=organization.id,

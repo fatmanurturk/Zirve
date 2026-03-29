@@ -19,7 +19,7 @@ export default function RootLayout({
     <html lang="tr">
       <body className={geist.className}>
         <Navbar />
-        <main className="min-h-screen bg-gray-50">
+        <main className="min-h-screen bg-zinc-950">
           {children}
         </main>
       </body>

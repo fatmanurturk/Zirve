@@ -9,6 +9,8 @@ from app.api.v1.badges import router as badges_router
 from app.api.v1.events import router as events_router
 from app.api.v1.organizations import router as organizations_router
 from app.api.v1.volunteers import router as volunteers_router
+from app.api.v1.organizations import router as organizations_router
+from app.api.v1.stats import router as stats_router
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -33,6 +35,7 @@ api_router.include_router(badges_router, prefix="/api/v1")
 api_router.include_router(applications_router, prefix="/api/v1")
 api_router.include_router(volunteers_router, prefix="/api/v1")
 api_router.include_router(organizations_router, prefix="/api/v1")
+api_router.include_router(stats_router, prefix="/api/v1")
 
 app.include_router(api_router)
 

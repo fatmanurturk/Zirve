@@ -123,10 +123,16 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {event.requirements && (
+        {event.requirements && typeof event.requirements === 'object' && Object.keys(event.requirements).length > 0 && (
           <div className="mb-8">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">Gereksinimler</h3>
-            <p className="text-gray-600 text-sm">{event.requirements}</p>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Gerekli Ekipmanlar</h3>
+            <div className="flex flex-wrap gap-2">
+              {Object.values(event.requirements).map((req: any, i) => (
+                <span key={i} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-xs font-medium border border-gray-200">
+                  {req}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
