@@ -92,6 +92,34 @@ async def list_events(
     )
 
 
+@router.get("/users/me/events", response_model=EventListResponse)
+async def list_my_events(
+    db: DbSessionDep,
+    current_user: CurrentUserDep,
+    skip: int = 0,
+    limit: int = 100,
+) -> EventListResponse:
+    if current_user.role != UserRole.ORGANIZER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only organizers can list their events",
+        )
+    
+    query = select(Event).where(Event.created_by == current_user.id)
+    count_query = select(func.count()).select_from(Event).where(Event.created_by == current_user.id)
+    
+    total_result = await db.execute(count_query)
+    total = total_result.scalar_one() or 0
+    
+    result = await db.execute(query.offset(skip).limit(limit))
+    events: List[Event] = result.scalars().all()
+    
+    return EventListResponse(
+        items=[_event_to_response(event) for event in events],
+        total=total,
+    )
+
+
 @router.post("/", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 async def create_event(
     event_in: EventCreate,

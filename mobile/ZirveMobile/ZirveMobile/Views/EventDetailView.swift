@@ -173,6 +173,7 @@ struct InfoCard: View {
         location_name: "Uludağ Zirve, Bursa",
         start_date: "2026-03-31T09:00:00Z",
         end_date: "2026-04-01T15:00:00Z",
-        max_volunteers: 15
+        max_volunteers: 15,
+        status: "OPEN"
     ))
 }

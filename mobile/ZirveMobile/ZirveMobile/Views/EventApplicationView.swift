@@ -159,7 +159,7 @@ struct EventApplicationView: View {
         
         isSubmitting = true
         
-        let baseURL = "http://127.0.0.1:8000/api/v1"
+        let baseURL = "http://localhost:8000/api/v1"
         guard let url = URL(string: "\(baseURL)/events/\(event.id)/apply") else {
             errorMessage = "Geçersiz URL"
             showErrorAlert = true
@@ -247,7 +247,8 @@ struct EventApplicationView: View {
             location_name: "Uludağ Zirve, Bursa",
             start_date: "2026-03-31T09:00:00Z",
             end_date: "2026-04-01T15:00:00Z",
-            max_volunteers: 15
+            max_volunteers: 15,
+            status: "OPEN"
         ))
         .environmentObject(AuthManager())
     }

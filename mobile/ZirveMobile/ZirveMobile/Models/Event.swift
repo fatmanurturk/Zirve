@@ -10,6 +10,7 @@ struct Event: Identifiable, Codable {
     let start_date: String
     let end_date: String
     let max_volunteers: Int?
+    let status: String
 }
 
 struct EventListResponse: Codable {

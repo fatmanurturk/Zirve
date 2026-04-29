@@ -17,10 +17,7 @@ export default function DashboardHome() {
 
   const loadEvents = async () => {
     try {
-      // Backend /api/v1/events/ listeliyor ama organizer filteri parametre olarak yoksa hepsini getirir.
-      // Eger backend sadece tumunu donuyorsa burada mock data veya filter() ekleyebiliriz ama backend'in organizatore 
-      // yalnizca kendi eventlerini donmesi eklenebilir. Simdilik direkt apiyi kullaniyoruz.
-      const res = await api.get("/api/v1/events/");
+      const res = await api.get("/api/v1/events/users/me/events");
       setEvents(res.data.items || []);
     } catch (err) {
       console.error(err);
