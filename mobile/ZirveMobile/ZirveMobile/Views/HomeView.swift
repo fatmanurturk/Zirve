@@ -267,13 +267,13 @@ struct HomeView: View {
             VStack(spacing: 14) {
                 // Sekme butonları — web'deki tab yapısı
                 HStack(spacing: 6) {
-                    TabButton(title: "Onaylı", count: viewModel.applications.filter { $0.status == "APPROVED" }.count, isActive: activeTab == "approved", color: accentGreen) {
+                    TabButton(title: "Onaylı", count: viewModel.applications.filter { $0.status.uppercased() == "APPROVED" }.count, isActive: activeTab == "approved", color: accentGreen) {
                         activeTab = "approved"
                     }
-                    TabButton(title: "Bekleyen", count: viewModel.applications.filter { $0.status == "PENDING" }.count, isActive: activeTab == "pending", color: .orange) {
+                    TabButton(title: "Bekleyen", count: viewModel.applications.filter { $0.status.uppercased() == "PENDING" }.count, isActive: activeTab == "pending", color: .orange) {
                         activeTab = "pending"
                     }
-                    TabButton(title: "Geçmiş", count: viewModel.applications.filter { $0.status == "REJECTED" }.count, isActive: activeTab == "history", color: .gray) {
+                    TabButton(title: "Geçmiş", count: viewModel.applications.filter { $0.status.uppercased() == "REJECTED" }.count, isActive: activeTab == "history", color: .gray) {
                         activeTab = "history"
                     }
                 }
@@ -374,7 +374,7 @@ struct HomeView: View {
                         }
                         .frame(height: 8)
                         
-                        Text("Seviyenizi artırmak için etkinliklere kaydolun.")
+                        Text("Katıldığınız etkinliklerin zorluk derecesine göre (10-100) puan kazanırsınız.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -434,9 +434,9 @@ struct HomeView: View {
     private var filteredApplications: [ApplicationItem] {
         viewModel.applications.filter { app in
             switch activeTab {
-            case "approved": return app.status == "APPROVED"
-            case "pending": return app.status == "PENDING"
-            case "history": return app.status == "REJECTED"
+            case "approved": return app.status.uppercased() == "APPROVED"
+            case "pending": return app.status.uppercased() == "PENDING"
+            case "history": return app.status.uppercased() == "REJECTED"
             default: return true
             }
         }
@@ -659,7 +659,7 @@ struct ApplicationRow: View {
     }
     
     private var statusIcon: String {
-        switch app.status {
+        switch app.status.uppercased() {
         case "APPROVED": return "✓"
         case "PENDING": return "?"
         default: return "×"
@@ -667,7 +667,7 @@ struct ApplicationRow: View {
     }
     
     private var statusLabel: String {
-        switch app.status {
+        switch app.status.uppercased() {
         case "APPROVED": return "ONAYLANDI"
         case "PENDING": return "BEKLİYOR"
         case "REJECTED": return "REDDEDİLDİ"
@@ -676,7 +676,7 @@ struct ApplicationRow: View {
     }
     
     private var statusBgColor: Color {
-        switch app.status {
+        switch app.status.uppercased() {
         case "APPROVED": return accentGreen.opacity(0.1)
         case "PENDING": return Color.orange.opacity(0.1)
         default: return Color.gray.opacity(0.1)
@@ -684,7 +684,7 @@ struct ApplicationRow: View {
     }
     
     private var statusTextColor: Color {
-        switch app.status {
+        switch app.status.uppercased() {
         case "APPROVED": return accentGreen
         case "PENDING": return .orange
         default: return .gray

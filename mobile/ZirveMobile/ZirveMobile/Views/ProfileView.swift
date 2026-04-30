@@ -26,7 +26,7 @@ struct ProfileView: View {
                     }
                     
                     // MARK: - Profil Tamamlama Çağrısı
-                    if authManager.volunteerProfile == nil && authManager.currentUser?.role == "volunteer" {
+                    if authManager.volunteerProfile == nil && authManager.currentUser?.role.lowercased() == "volunteer" {
                         profileSetupCard
                     }
                     
@@ -75,7 +75,7 @@ struct ProfileView: View {
                     
                     // Rol Badge — web'deki bg-green-100 text-green-700 badge
                     if let role = authManager.currentUser?.role {
-                        Text(role == "volunteer" ? "Gönüllü" : "Organizatör")
+                        Text(role.lowercased() == "volunteer" ? "Gönüllü" : "Organizatör")
                             .font(.caption)
                             .fontWeight(.medium)
                             .foregroundColor(accentGreen)

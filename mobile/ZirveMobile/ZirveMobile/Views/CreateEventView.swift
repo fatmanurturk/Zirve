@@ -11,7 +11,7 @@ struct EventCreateData: Codable {
     let start_date: String
     let end_date: String
     let max_volunteers: Int?
-    let requirements: [String]?
+    let requirements: [String: String]?
 }
 
 @MainActor
@@ -175,15 +175,15 @@ struct CreateEventView: View {
         let eventData = EventCreateData(
             title: title,
             description: description.isEmpty ? nil : description,
-            category: category,
-            difficulty: difficulty,
+            category: category.lowercased(),
+            difficulty: difficulty.lowercased(),
             location_name: locationName.isEmpty ? nil : locationName,
             latitude: nil,
             longitude: nil,
             start_date: formatter.string(from: startDate),
             end_date: formatter.string(from: endDate),
             max_volunteers: maxVol,
-            requirements: []
+            requirements: [:]
         )
         
         Task {

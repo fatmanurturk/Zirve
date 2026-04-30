@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_user
 from app.db.base import get_db
 from app.models.application import Application, ApplicationStatus
-from app.models.event import Event, EventStatus
+from app.models.event import Event, EventStatus, EventDifficulty
+from app.models.volunteer import VolunteerProfile
 from app.models.user import User, UserRole
 from app.schemas.application import (
     ApplicationCreate,
@@ -24,6 +25,13 @@ router = APIRouter(tags=["applications"])
 
 DbSessionDep = Annotated[AsyncSession, Depends(get_db)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+DIFFICULTY_SCORES = {
+    EventDifficulty.EASY: 10,
+    EventDifficulty.MEDIUM: 20,
+    EventDifficulty.HARD: 50,
+    EventDifficulty.EXPERT: 100,
+}
 
 
 def _app_to_response(app: Application) -> ApplicationResponse:
@@ -195,8 +203,19 @@ async def checkin_application(
         raise HTTPException(status_code=400, detail="Sadece onaylı basvurular check-in yapilabilir.")
     if application.checked_in:
         raise HTTPException(status_code=409, detail="Bu gonullu zaten check-in yapildi.")
+    
     application.checked_in = True
     application.checked_in_at = datetime.now(timezone.utc)
+    
+    # Add impact score
+    score_to_add = DIFFICULTY_SCORES.get(event.difficulty, 0)
+    profile_result = await db.execute(
+        select(VolunteerProfile).where(VolunteerProfile.user_id == application.volunteer_id)
+    )
+    profile = profile_result.scalar_one_or_none()
+    if profile:
+        profile.total_impact_score = (profile.total_impact_score or 0) + score_to_add
+        
     await db.commit()
     await db.refresh(application)
     return _app_to_response(application)
@@ -226,8 +245,19 @@ async def undo_checkin(
         raise HTTPException(status_code=404, detail="Basvuru bulunamadi.")
     if not application.checked_in:
         raise HTTPException(status_code=400, detail="Bu gonullu zaten check-in yapilmadi.")
+        
     application.checked_in = False
     application.checked_in_at = None
+    
+    # Deduct impact score
+    score_to_deduct = DIFFICULTY_SCORES.get(event.difficulty, 0)
+    profile_result = await db.execute(
+        select(VolunteerProfile).where(VolunteerProfile.user_id == application.volunteer_id)
+    )
+    profile = profile_result.scalar_one_or_none()
+    if profile:
+        profile.total_impact_score = max(0, (profile.total_impact_score or 0) - score_to_deduct)
+        
     await db.commit()
     await db.refresh(application)
     return _app_to_response(application)

@@ -248,7 +248,8 @@ struct EventApplicationView: View {
             start_date: "2026-03-31T09:00:00Z",
             end_date: "2026-04-01T15:00:00Z",
             max_volunteers: 15,
-            status: "OPEN"
+            status: "OPEN",
+            created_by: "test-user-id"
         ))
         .environmentObject(AuthManager())
     }

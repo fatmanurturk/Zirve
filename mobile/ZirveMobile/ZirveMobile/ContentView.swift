@@ -7,8 +7,13 @@ struct ContentView: View {
         Group {
             if authManager.isAuthenticated {
                 // Giriş yapılmışsa ana uygulama
-                if authManager.currentUser?.role == "ORGANIZER" {
+                if authManager.currentUser?.role.uppercased() == "ORGANIZER" {
                     TabView {
+                        HomeView()
+                            .tabItem {
+                                Label("Ana Sayfa", systemImage: "house.fill")
+                            }
+                            
                         OrganizerDashboardView()
                             .tabItem {
                                 Label("Panel", systemImage: "chart.bar.doc.horizontal")

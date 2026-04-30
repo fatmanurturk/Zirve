@@ -3,6 +3,8 @@ import SwiftUI
 struct EventDetailView: View {
     let event: Event
     
+    @EnvironmentObject var authManager: AuthManager
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -76,28 +78,52 @@ struct EventDetailView: View {
                     
                     Spacer(minLength: 40)
                     
-                    // Başvur Butonu
-                    NavigationLink(destination: EventApplicationView(event: event)) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "paperplane.fill")
-                            Text("Etkinliğe Başvur")
-                        }
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            LinearGradient(
-                                colors: [Color.green, Color.mint],
-                                startPoint: .leading,
-                                endPoint: .trailing
+                    // Başvur veya Düzenle Butonu
+                    if authManager.currentUser?.id == event.created_by {
+                        NavigationLink(destination: EditEventView(event: event)) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "pencil")
+                                Text("Etkinliği Düzenle")
+                            }
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.blue, Color.cyan],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
                             )
-                        )
-                        .cornerRadius(16)
-                        .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 5)
+                            .cornerRadius(16)
+                            .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 5)
+                        }
+                        .padding(.bottom, 30)
+                    } else {
+                        NavigationLink(destination: EventApplicationView(event: event)) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "paperplane.fill")
+                                Text("Etkinliğe Başvur")
+                            }
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                LinearGradient(
+                                    colors: [Color.green, Color.mint],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(16)
+                            .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 5)
+                        }
+                        .padding(.bottom, 30)
                     }
-                    .padding(.bottom, 30)
                 }
                 .padding(.horizontal, 20)
             }
@@ -174,6 +200,7 @@ struct InfoCard: View {
         start_date: "2026-03-31T09:00:00Z",
         end_date: "2026-04-01T15:00:00Z",
         max_volunteers: 15,
-        status: "OPEN"
+        status: "OPEN",
+        created_by: "test-user-id"
     ))
 }
