@@ -47,7 +47,98 @@ struct EventDetailView: View {
                         InfoCard(icon: "mappin.and.ellipse", title: "Konum", value: event.location_name ?? "Belirtilmedi")
                         InfoCard(icon: "bolt.fill", title: "Zorluk", value: event.difficulty.capitalized)
                     }
-                    
+
+                    // Kulüp & Organizatör Kartı
+                    if let clubId = event.organization_id {
+                        NavigationLink(destination: ClubProfileView(clubId: clubId, clubName: event.organization_name)) {
+                            HStack(spacing: 14) {
+                                // Logo / Baş harfler
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.12))
+                                        .frame(width: 48, height: 48)
+
+                                    if let logoUrl = event.organization_logo_url,
+                                       let url = URL(string: logoUrl) {
+                                        AsyncImage(url: url) { image in
+                                            image.resizable().scaledToFill()
+                                        } placeholder: {
+                                            Text(String((event.organization_name ?? "ZV").prefix(2)).uppercased())
+                                                .font(.subheadline)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                        }
+                                        .frame(width: 44, height: 44)
+                                        .clipShape(Circle())
+                                    } else {
+                                        Text(String((event.organization_name ?? "ZV").prefix(2)).uppercased())
+                                            .font(.subheadline)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                    }
+                                }
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "building.2.fill")
+                                            .font(.caption2)
+                                            .foregroundColor(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                        Text("Düzenleyen Kulüp")
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                    }
+                                    Text(event.organization_name ?? "Bilinmeyen Kulüp")
+                                        .font(.subheadline)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.primary)
+
+                                    if let organizer = event.organizer_name {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "person.fill")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            Text(organizer)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+
+                                Spacer()
+
+                                VStack(spacing: 2) {
+                                    Image(systemName: "chevron.right")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                    Text("Kulüp\nSayfası")
+                                        .font(.caption2)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                        .multilineTextAlignment(.center)
+                                }
+                            }
+                            .padding(14)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.06),
+                                        Color(red: 0.2, green: 0.7, blue: 0.55).opacity(0.06)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .cornerRadius(14)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.2), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+
                     if let maxVol = event.max_volunteers {
                         HStack {
                             Image(systemName: "person.3.sequence.fill")
@@ -80,25 +171,42 @@ struct EventDetailView: View {
                     
                     // Başvur veya Düzenle Butonu
                     if authManager.currentUser?.id == event.created_by {
-                        NavigationLink(destination: EditEventView(event: event)) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "pencil")
-                                Text("Etkinliği Düzenle")
+                        VStack(spacing: 12) {
+                            NavigationLink(destination: EventApplicantsView(eventId: event.id)) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "person.2.fill")
+                                    Text("Başvuruları Görüntüle")
+                                }
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                .cornerRadius(16)
+                                .shadow(color: Color.green.opacity(0.3), radius: 8, x: 0, y: 5)
                             }
-                            .font(.headline)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                LinearGradient(
-                                    colors: [Color.blue, Color.cyan],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
+                            
+                            NavigationLink(destination: EditEventView(event: event)) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "pencil")
+                                    Text("Etkinliği Düzenle")
+                                }
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.blue, Color.cyan],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
                                 )
-                            )
-                            .cornerRadius(16)
-                            .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 5)
+                                .cornerRadius(16)
+                                .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 5)
+                            }
                         }
                         .padding(.bottom, 30)
                     } else {
@@ -201,6 +309,11 @@ struct InfoCard: View {
         end_date: "2026-04-01T15:00:00Z",
         max_volunteers: 15,
         status: "OPEN",
-        created_by: "test-user-id"
+        created_by: "test-user-id",
+        organization_id: "club-preview-id",
+        organization_name: "Zirve Dağcılık Kulübü",
+        organization_logo_url: nil,
+        organizer_name: "Ahmet Yılmaz"
     ))
+    .environmentObject(AuthManager())
 }

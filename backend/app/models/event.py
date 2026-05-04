@@ -1,10 +1,11 @@
 from __future__ import annotations
 import enum
 from datetime import datetime
-from typing import List, Optional
+from uuid import UUID
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base_model import BaseModel
+from typing import Optional, List
 
 class EventCategory(enum.Enum):
     HIKING = "hiking"
@@ -28,8 +29,8 @@ class EventStatus(enum.Enum):
 
 class Event(BaseModel):
     __tablename__ = "events"
-    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_by: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     category: Mapped[EventCategory] = mapped_column(Enum(EventCategory, name="event_category"), nullable=False)

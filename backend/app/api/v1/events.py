@@ -32,7 +32,7 @@ DbSessionDep = Annotated[AsyncSession, Depends(get_db)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
-def _event_to_response(event: Event) -> EventResponse:
+def _event_to_response(event: Event, org: Organization | None = None, creator: User | None = None) -> EventResponse:
     data = {
         "id": event.id,
         "title": event.title,
@@ -50,9 +50,15 @@ def _event_to_response(event: Event) -> EventResponse:
         "created_by": event.created_by,
         "organization_id": event.organization_id,
         "created_at": event.created_at,
+        # Kulüp & Organizatör bilgileri
+        "organization_name": org.name if org else None,
+        "organization_logo_url": org.logo_url if org else None,
+        "organizer_name": creator.full_name if creator else None,
     }
     return EventResponse.model_validate(data)
 
+
+from sqlalchemy.orm import joinedload
 
 @router.get("/", response_model=EventListResponse)
 async def list_events(
@@ -63,7 +69,10 @@ async def list_events(
     skip: int = 0,
     limit: int = 20,
 ) -> EventListResponse:
-    query = select(Event)
+    query = (
+        select(Event)
+        .options(joinedload(Event.organization), joinedload(Event.created_by_user))
+    )
 
     if category is not None:
         query = query.where(Event.category == category)
@@ -84,12 +93,13 @@ async def list_events(
     total = total_result.scalar_one() or 0
 
     result = await db.execute(query.offset(skip).limit(limit))
-    events: List[Event] = result.scalars().all()
+    events: List[Event] = result.scalars().unique().all()
 
-    return EventListResponse(
-        items=[_event_to_response(event) for event in events],
-        total=total,
-    )
+    items = [
+        _event_to_response(event, org=event.organization, creator=event.created_by_user)
+        for event in events
+    ]
+    return EventListResponse(items=items, total=total)
 
 
 @router.get("/users/me/events", response_model=EventListResponse)
@@ -105,19 +115,24 @@ async def list_my_events(
             detail="Only organizers can list their events",
         )
     
-    query = select(Event).where(Event.created_by == current_user.id)
+    query = (
+        select(Event)
+        .options(joinedload(Event.organization), joinedload(Event.created_by_user))
+        .where(Event.created_by == current_user.id)
+    )
     count_query = select(func.count()).select_from(Event).where(Event.created_by == current_user.id)
     
     total_result = await db.execute(count_query)
     total = total_result.scalar_one() or 0
     
     result = await db.execute(query.offset(skip).limit(limit))
-    events: List[Event] = result.scalars().all()
+    events: List[Event] = result.scalars().unique().all()
     
-    return EventListResponse(
-        items=[_event_to_response(event) for event in events],
-        total=total,
-    )
+    items = [
+        _event_to_response(event, org=event.organization, creator=event.created_by_user)
+        for event in events
+    ]
+    return EventListResponse(items=items, total=total)
 
 
 @router.post("/", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
@@ -168,7 +183,7 @@ async def create_event(
     await db.commit()
     await db.refresh(event)
 
-    return _event_to_response(event)
+    return _event_to_response(event, org=organization, creator=current_user)
 
 
 @router.get("/{event_id}", response_model=EventResponse)
@@ -176,7 +191,11 @@ async def get_event(
     event_id: UUID,
     db: DbSessionDep,
 ) -> EventResponse:
-    result = await db.execute(select(Event).where(Event.id == event_id))
+    result = await db.execute(
+        select(Event)
+        .options(joinedload(Event.organization), joinedload(Event.created_by_user))
+        .where(Event.id == event_id)
+    )
     event = result.scalar_one_or_none()
     if event is None:
         raise HTTPException(
@@ -184,7 +203,7 @@ async def get_event(
             detail="Event not found",
         )
 
-    return _event_to_response(event)
+    return _event_to_response(event, org=event.organization, creator=event.created_by_user)
 
 
 @router.put("/{event_id}", response_model=EventResponse)
@@ -194,7 +213,11 @@ async def update_event(
     db: DbSessionDep,
     current_user: CurrentUserDep,
 ) -> EventResponse:
-    result = await db.execute(select(Event).where(Event.id == event_id))
+    result = await db.execute(
+        select(Event)
+        .options(joinedload(Event.organization), joinedload(Event.created_by_user))
+        .where(Event.id == event_id)
+    )
     event = result.scalar_one_or_none()
     if event is None:
         raise HTTPException(
@@ -218,7 +241,7 @@ async def update_event(
     await db.commit()
     await db.refresh(event)
 
-    return _event_to_response(event)
+    return _event_to_response(event, org=event.organization, creator=event.created_by_user)
 
 
 @router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)

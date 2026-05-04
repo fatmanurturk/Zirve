@@ -14,6 +14,7 @@ from app.schemas.user import (
     TokenResponse,
     UserLogin,
     UserRegister,
+    UserUpdate,
     UserResponse,
 )
 
@@ -92,3 +93,17 @@ async def read_me(
 ) -> UserResponse:
     return UserResponse.model_validate(current_user)
 
+@router.patch("/me", response_model=UserResponse)
+async def update_me(
+    user_in: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    update_data = user_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+    
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    return UserResponse.model_validate(current_user)

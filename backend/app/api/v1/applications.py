@@ -112,7 +112,11 @@ async def list_event_applications(
         raise HTTPException(status_code=404, detail="Etkinlik bulunamadi.")
     if str(event.created_by) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sadece etkinlik sahibi gorebilir.")
-    query = select(Application).where(Application.event_id == event_id)
+    query = (
+        select(Application, User.full_name, User.avatar_url)
+        .join(User, Application.volunteer_id == User.id)
+        .where(Application.event_id == event_id)
+    )
     count_query = select(func.count()).select_from(Application).where(Application.event_id == event_id)
     if app_status is not None:
         query = query.where(Application.status == app_status)
@@ -120,8 +124,16 @@ async def list_event_applications(
     total_result = await db.execute(count_query)
     total = total_result.scalar_one() or 0
     result = await db.execute(query.offset(skip).limit(limit))
-    applications = result.scalars().all()
-    return ApplicationListResponse(items=[_app_to_response(a) for a in applications], total=int(total))
+    rows = result.all()
+    
+    items = []
+    for app, name, avatar in rows:
+        resp = _app_to_response(app)
+        resp.volunteer_name = name
+        resp.volunteer_avatar_url = avatar
+        items.append(resp)
+        
+    return ApplicationListResponse(items=items, total=int(total))
 
 
 @router.put("/events/{event_id}/applications/{application_id}", response_model=ApplicationResponse)
@@ -139,20 +151,29 @@ async def update_application_status(
     if str(event.created_by) != str(current_user.id):
         raise HTTPException(status_code=403, detail="Sadece etkinlik sahibi guncelleyebilir.")
     result = await db.execute(
-        select(Application).where(
+        select(Application, User.full_name, User.avatar_url)
+        .join(User, Application.volunteer_id == User.id)
+        .where(
             Application.id == application_id,
             Application.event_id == event_id,
         )
     )
-    application = result.scalar_one_or_none()
-    if application is None:
+    row = result.first()
+    if row is None:
         raise HTTPException(status_code=404, detail="Basvuru bulunamadi.")
+    
+    application, name, avatar = row
     application.status = body.status
     if body.reviewer_note is not None:
         application.reviewer_note = body.reviewer_note
+    
     await db.commit()
     await db.refresh(application)
-    return _app_to_response(application)
+    
+    resp = _app_to_response(application)
+    resp.volunteer_name = name
+    resp.volunteer_avatar_url = avatar
+    return resp
 
 
 @router.get("/users/me/applications", response_model=ApplicationListResponse)
@@ -285,10 +306,18 @@ async def list_checkins(
     )
     total = count_result.scalar_one() or 0
     result = await db.execute(
-        select(Application).where(
+        select(Application, User.full_name, User.avatar_url)
+        .join(User, Application.volunteer_id == User.id)
+        .where(
             Application.event_id == event_id,
             Application.checked_in.is_(True),
         ).offset(skip).limit(limit)
     )
-    applications = result.scalars().all()
-    return ApplicationListResponse(items=[_app_to_response(a) for a in applications], total=int(total))
+    rows = result.all()
+    items = []
+    for app, name, avatar in rows:
+        resp = _app_to_response(app)
+        resp.volunteer_name = name
+        resp.volunteer_avatar_url = avatar
+        items.append(resp)
+    return ApplicationListResponse(items=items, total=int(total))

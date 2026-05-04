@@ -1,5 +1,6 @@
-from __future__ import annotations
+from uuid import UUID
 import enum
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import Boolean, Enum, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,7 +27,7 @@ class EquipmentCondition(enum.Enum):
 
 class VolunteerProfile(BaseModel):
     __tablename__ = "volunteer_profiles"
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     bio: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     experience_level: Mapped[ExperienceLevel] = mapped_column(Enum(ExperienceLevel, name="experience_level"), nullable=False)
     max_altitude_m: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -38,7 +39,7 @@ class VolunteerProfile(BaseModel):
 
 class VolunteerEquipment(BaseModel):
     __tablename__ = "volunteer_equipment"
-    volunteer_id: Mapped[int] = mapped_column(ForeignKey("volunteer_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    volunteer_id: Mapped[UUID] = mapped_column(ForeignKey("volunteer_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     equipment_type: Mapped[EquipmentType] = mapped_column(Enum(EquipmentType, name="equipment_type"), nullable=False)
     brand: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     condition: Mapped[EquipmentCondition] = mapped_column(Enum(EquipmentCondition, name="equipment_condition"), nullable=False)

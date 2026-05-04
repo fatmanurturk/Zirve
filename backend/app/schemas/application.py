@@ -31,6 +31,8 @@ class ApplicationResponse(BaseModel):
     checked_in_at: Optional[datetime]
     applied_at: datetime
     created_at: datetime
+    volunteer_name: Optional[str] = None
+    volunteer_avatar_url: Optional[str] = None
 
 
 class ApplicationListResponse(BaseModel):

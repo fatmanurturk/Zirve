@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: "Doğa sporları etkinliklerine gönüllü ol",
 };
 
+import Providers from "@/components/providers/Providers";
+
 export default function RootLayout({
   children,
 }: {
@@ -18,10 +20,12 @@ export default function RootLayout({
   return (
     <html lang="tr">
       <body className={geist.className}>
-        <Navbar />
-        <main className="min-h-screen bg-slate-50 text-slate-900">
-          {children}
-        </main>
+        <Providers>
+          <Navbar />
+          <main className="min-h-screen bg-slate-50 text-slate-900">
+            {children}
+          </main>
+        </Providers>
       </body>
     </html>
   );

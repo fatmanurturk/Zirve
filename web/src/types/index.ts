@@ -35,6 +35,9 @@ export interface Event {
   requirements?: string;
   created_by: string;
   organization_id?: string;
+  organization_name?: string;
+  organization_logo_url?: string;
+  organizer_name?: string;
   created_at: string;
 }
 
@@ -56,6 +59,8 @@ export interface Application {
   checked_in_at?: string;
   applied_at: string;
   created_at: string;
+  volunteer_name?: string;
+  volunteer_avatar_url?: string;
 }
 
 export interface ApplicationListResponse {

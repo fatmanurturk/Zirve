@@ -1,4 +1,4 @@
-from __future__ import annotations
+from uuid import UUID
 import enum
 from datetime import datetime
 from typing import Optional
@@ -13,8 +13,8 @@ class ApplicationStatus(enum.Enum):
 
 class Application(BaseModel):
     __tablename__ = "applications"
-    event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
-    volunteer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_id: Mapped[UUID] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    volunteer_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     motivation_letter: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[ApplicationStatus] = mapped_column(Enum(ApplicationStatus, name="application_status"), nullable=False, default=ApplicationStatus.PENDING)
     reviewer_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

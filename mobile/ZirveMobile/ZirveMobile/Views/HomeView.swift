@@ -7,20 +7,6 @@ struct PlatformStats: Codable {
     let cities_count: Int
 }
 
-// MARK: - Başvuru Modeli
-struct ApplicationItem: Codable, Identifiable {
-    let id: String
-    let event_id: String
-    let volunteer_id: String
-    let motivation_letter: String?
-    let status: String
-    let applied_at: String
-}
-
-struct ApplicationListResponse: Codable {
-    let items: [ApplicationItem]
-    let total: Int
-}
 
 // MARK: - HomeView ViewModel
 @MainActor

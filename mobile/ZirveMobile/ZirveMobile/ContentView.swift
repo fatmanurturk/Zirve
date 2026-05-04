@@ -57,6 +57,14 @@ struct ContentView: View {
             }
         }
         .environmentObject(authManager)
+        .sheet(isPresented: Binding(
+            get: { authManager.isAuthenticated && authManager.currentUser?.role.lowercased() == "organizer" && !authManager.hasOrganization },
+            set: { _ in }
+        )) {
+            ClubSetupView()
+                .environmentObject(authManager)
+                .interactiveDismissDisabled()
+        }
     }
 }
 

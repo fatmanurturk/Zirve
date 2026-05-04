@@ -12,6 +12,10 @@ struct Event: Identifiable, Codable {
     let max_volunteers: Int?
     let status: String
     let created_by: String
+    let organization_id: String?
+    let organization_name: String?
+    let organization_logo_url: String?
+    let organizer_name: String?
 }
 
 struct EventListResponse: Codable {

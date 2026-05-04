@@ -2,7 +2,8 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject var authManager: AuthManager
-    @State private var isRefreshing = false
+    @State private var showEditProfile = false
+    @State private var showClubSetup = false
     
     // Web'deki yeşil renk tonu: green-700
     private let accentGreen = Color(red: 0.2, green: 0.5, blue: 0.2)
@@ -14,6 +15,11 @@ struct ProfileView: View {
                     
                     // MARK: - Kullanıcı Bilgi Kartı
                     userInfoCard
+                    
+                    // MARK: - Kulüp Yönetimi (Sadece Organizatör)
+                    if authManager.currentUser?.role.lowercased() == "organizer" {
+                        organizerClubCard
+                    }
                     
                     // MARK: - İstatistik Kartları
                     if let stats = authManager.userStats {
@@ -40,6 +46,23 @@ struct ProfileView: View {
             }
             .background(Color(UIColor.secondarySystemBackground).ignoresSafeArea())
             .navigationTitle("Profilim")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showEditProfile = true }) {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(accentGreen)
+                    }
+                }
+            }
+            .sheet(isPresented: $showEditProfile) {
+                EditProfileView()
+                    .environmentObject(authManager)
+            }
+            .sheet(isPresented: $showClubSetup) {
+                ClubSetupView()
+                    .environmentObject(authManager)
+            }
             .refreshable {
                 await authManager.fetchUserData()
             }
@@ -73,6 +96,13 @@ struct ProfileView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
+                    // Telefon
+                    if let phone = authManager.currentUser?.phone {
+                        Text("📞 \(phone)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
                     // Rol Badge — web'deki bg-green-100 text-green-700 badge
                     if let role = authManager.currentUser?.role {
                         Text(role.lowercased() == "volunteer" ? "Gönüllü" : "Organizatör")
@@ -97,6 +127,43 @@ struct ProfileView: View {
                 .stroke(Color.gray.opacity(0.08), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.03), radius: 6, x: 0, y: 2)
+    }
+    
+    // MARK: - Organizatör Kulüp Kartı
+    private var organizerClubCard: some View {
+        Button(action: { showClubSetup = true }) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Kulüp Ayarlarını Yönet")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Text("Kulüp bilgilerini, logosunu ve ayarlarını buradan düzenleyebilirsin.")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                            .multilineTextAlignment(.leading)
+                    }
+                    Spacer()
+                    Image(systemName: "building.2.fill")
+                        .font(.title)
+                        .foregroundColor(.white.opacity(0.3))
+                }
+                
+                Text("Düzenlemek İçin Dokun")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(accentGreen)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white)
+                    .cornerRadius(8)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(accentGreen)
+            .cornerRadius(16)
+            .shadow(color: accentGreen.opacity(0.3), radius: 8, x: 0, y: 4)
+        }
     }
     
     // MARK: - İstatistik Grid

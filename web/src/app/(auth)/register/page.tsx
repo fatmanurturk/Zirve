@@ -26,7 +26,11 @@ export default function RegisterPage() {
     setError("");
     try {
       await register(form);
-      router.push("/events");
+      if (form.role === "organizer") {
+        router.push("/clubs/setup");
+      } else {
+        router.push("/events");
+      }
     } catch (error: any) {
       if (error.response?.data?.detail) {
         setError(error.response.data.detail);

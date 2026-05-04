@@ -56,6 +56,10 @@ class EventResponse(BaseModel):
     created_by: UUID
     organization_id: Optional[UUID] = None
     created_at: datetime
+    # Kulüp & Organizatör bilgileri
+    organization_name: Optional[str] = None
+    organization_logo_url: Optional[str] = None
+    organizer_name: Optional[str] = None
 
 
 class EventListResponse(BaseModel):

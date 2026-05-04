@@ -249,7 +249,11 @@ struct EventApplicationView: View {
             end_date: "2026-04-01T15:00:00Z",
             max_volunteers: 15,
             status: "OPEN",
-            created_by: "test-user-id"
+            created_by: "test-user-id",
+            organization_id: "club-preview-id",
+            organization_name: "Zirve Dağcılık Kulübü",
+            organization_logo_url: nil,
+            organizer_name: "Ahmet Yılmaz"
         ))
         .environmentObject(AuthManager())
     }

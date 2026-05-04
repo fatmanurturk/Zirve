@@ -57,6 +57,9 @@ async def create_organization(
         description=body.description,
         logo_url=body.logo_url,
         website=body.website,
+        city=body.city,
+        category=body.category,
+        tags=body.tags,
         is_verified=False,
     )
     db.add(org)

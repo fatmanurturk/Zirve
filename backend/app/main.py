@@ -9,7 +9,6 @@ from app.api.v1.badges import router as badges_router
 from app.api.v1.events import router as events_router
 from app.api.v1.organizations import router as organizations_router
 from app.api.v1.volunteers import router as volunteers_router
-from app.api.v1.organizations import router as organizations_router
 from app.api.v1.stats import router as stats_router
 from app.core.config import get_settings
 
