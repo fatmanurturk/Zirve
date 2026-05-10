@@ -39,6 +39,7 @@ export interface Event {
   organization_logo_url?: string;
   organizer_name?: string;
   created_at: string;
+  photos?: EventPhoto[];
 }
 
 export interface EventListResponse {
@@ -123,4 +124,18 @@ export interface UserBadge {
   earned_from_event_id?: string;
   earned_at: string;
   badge: Badge;
+}
+export interface EventPhoto {
+  id: string;
+  event_id: string;
+  file_path: string;
+  original_filename: string;
+  caption?: string;
+  display_order: number;
+  is_cover: boolean;
+  uploaded_at: string;
+}
+
+export interface EventPhotoReorderRequest {
+  photo_ids: string[];
 }

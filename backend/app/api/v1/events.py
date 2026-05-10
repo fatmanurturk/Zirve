@@ -33,6 +33,14 @@ CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
 def _event_to_response(event: Event, org: Organization | None = None, creator: User | None = None) -> EventResponse:
+    cover_photo_url = None
+    if "photos" in event.__dict__ and event.photos:
+        cover_photo = next((p for p in event.photos if p.is_cover), None)
+        if not cover_photo and len(event.photos) > 0:
+            cover_photo = event.photos[0]
+        if cover_photo:
+            cover_photo_url = cover_photo.file_path
+
     data = {
         "id": event.id,
         "title": event.title,
@@ -54,6 +62,7 @@ def _event_to_response(event: Event, org: Organization | None = None, creator: U
         "organization_name": org.name if org else None,
         "organization_logo_url": org.logo_url if org else None,
         "organizer_name": creator.full_name if creator else None,
+        "cover_photo_url": cover_photo_url,
     }
     return EventResponse.model_validate(data)
 
@@ -71,7 +80,7 @@ async def list_events(
 ) -> EventListResponse:
     query = (
         select(Event)
-        .options(joinedload(Event.organization), joinedload(Event.created_by_user))
+        .options(joinedload(Event.organization), joinedload(Event.created_by_user), joinedload(Event.photos))
     )
 
     if category is not None:
@@ -117,7 +126,7 @@ async def list_my_events(
     
     query = (
         select(Event)
-        .options(joinedload(Event.organization), joinedload(Event.created_by_user))
+        .options(joinedload(Event.organization), joinedload(Event.created_by_user), joinedload(Event.photos))
         .where(Event.created_by == current_user.id)
     )
     count_query = select(func.count()).select_from(Event).where(Event.created_by == current_user.id)
@@ -193,10 +202,10 @@ async def get_event(
 ) -> EventResponse:
     result = await db.execute(
         select(Event)
-        .options(joinedload(Event.organization), joinedload(Event.created_by_user))
+        .options(joinedload(Event.organization), joinedload(Event.created_by_user), joinedload(Event.photos))
         .where(Event.id == event_id)
     )
-    event = result.scalar_one_or_none()
+    event = result.unique().scalar_one_or_none()
     if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -215,10 +224,10 @@ async def update_event(
 ) -> EventResponse:
     result = await db.execute(
         select(Event)
-        .options(joinedload(Event.organization), joinedload(Event.created_by_user))
+        .options(joinedload(Event.organization), joinedload(Event.created_by_user), joinedload(Event.photos))
         .where(Event.id == event_id)
     )
-    event = result.scalar_one_or_none()
+    event = result.unique().scalar_one_or_none()
     if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

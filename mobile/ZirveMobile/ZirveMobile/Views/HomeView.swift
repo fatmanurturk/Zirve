@@ -467,14 +467,33 @@ struct HomeEventCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Emoji görsel alanı — web'deki kategori renk alanına sadık
+            // Emoji görsel alanı veya kapak fotoğrafı
             ZStack {
                 Color(red: 0.93, green: 0.97, blue: 0.94)
                 
-                Text(categoryEmojis[event.category] ?? "🏕️")
-                    .font(.system(size: 44))
+                if let coverPhoto = event.cover_photo_url,
+                   let url = URL(string: "http://localhost:8000/uploads/\(coverPhoto)") {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                        case .success(let image):
+                            image.resizable()
+                                 .aspectRatio(contentMode: .fill)
+                        case .failure:
+                            Text(categoryEmojis[event.category] ?? "🏕️")
+                                .font(.system(size: 44))
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                } else {
+                    Text(categoryEmojis[event.category] ?? "🏕️")
+                        .font(.system(size: 44))
+                }
             }
             .frame(height: 100)
+            .clipped()
             
             VStack(alignment: .leading, spacing: 8) {
                 // Kategori badge

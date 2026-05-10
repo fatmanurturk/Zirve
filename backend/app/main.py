@@ -10,7 +10,10 @@ from app.api.v1.events import router as events_router
 from app.api.v1.organizations import router as organizations_router
 from app.api.v1.volunteers import router as volunteers_router
 from app.api.v1.stats import router as stats_router
+from app.api.v1.event_photos import router as event_photos_router
 from app.core.config import get_settings
+from fastapi.staticfiles import StaticFiles
+import os
 
 settings = get_settings()
 
@@ -29,6 +32,7 @@ app.add_middleware(
 
 api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/api/v1/auth")
+api_router.include_router(event_photos_router, prefix="/api/v1/event-photos")
 api_router.include_router(events_router, prefix="/api/v1/events")
 api_router.include_router(badges_router, prefix="/api/v1")
 api_router.include_router(applications_router, prefix="/api/v1")
@@ -37,6 +41,11 @@ api_router.include_router(organizations_router, prefix="/api/v1")
 api_router.include_router(stats_router, prefix="/api/v1")
 
 app.include_router(api_router)
+
+# Mount uploads directory
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.get("/health", tags=["health"])

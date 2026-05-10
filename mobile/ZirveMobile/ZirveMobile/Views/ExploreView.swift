@@ -100,52 +100,75 @@ struct EventRowView: View {
     let event: Event
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            
-            HStack {
-                Text(event.category.uppercased())
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.green.opacity(0.15))
-                    .foregroundColor(.green)
-                    .cornerRadius(8)
-                
-                Spacer()
-                
-                Text(event.difficulty.uppercased())
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.secondary)
+        VStack(alignment: .leading, spacing: 0) {
+            if let coverPhoto = event.cover_photo_url,
+               let url = URL(string: "http://localhost:8000/uploads/\(coverPhoto)") {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        ZStack {
+                            Color.gray.opacity(0.1)
+                            ProgressView()
+                        }
+                    case .success(let image):
+                        image.resizable()
+                             .aspectRatio(contentMode: .fill)
+                    case .failure:
+                        Color.gray.opacity(0.1)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+                .frame(height: 140)
+                .clipped()
             }
             
-            Text(event.title)
-                .font(.headline)
-                .fontWeight(.bold)
-                .foregroundColor(.primary)
-                .lineLimit(2)
-            
-            HStack(spacing: 15) {
-                HStack(spacing: 4) {
-                    Image(systemName: "mappin.and.ellipse")
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(event.category.uppercased())
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.green.opacity(0.15))
                         .foregroundColor(.green)
-                    Text(event.location_name ?? "Gizli")
-                        .font(.subheadline)
+                        .cornerRadius(8)
+                    
+                    Spacer()
+                    
+                    Text(event.difficulty.uppercased())
+                        .font(.caption)
+                        .fontWeight(.bold)
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
                 }
                 
-                HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                        .foregroundColor(.green)
-                    Text(formatDate(event.start_date))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                Text(event.title)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+                
+                HStack(spacing: 15) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .foregroundColor(.green)
+                        Text(event.location_name ?? "Gizli")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar")
+                            .foregroundColor(.green)
+                        Text(formatDate(event.start_date))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
+            .padding(16)
         }
-        .padding(16)
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)

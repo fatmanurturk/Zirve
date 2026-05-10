@@ -155,7 +155,6 @@ struct EventDetailView: View {
                     
                     Divider()
                     
-                    // Açıklama
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Etkinlik Detayları")
                             .font(.headline)
@@ -165,6 +164,10 @@ struct EventDetailView: View {
                             .font(.body)
                             .foregroundColor(.secondary)
                             .lineSpacing(4)
+                    }
+
+                    if let photos = event.photos, !photos.isEmpty {
+                        EventPhotoGalleryView(photos: photos)
                     }
                     
                     Spacer(minLength: 40)
@@ -197,15 +200,23 @@ struct EventDetailView: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(
-                                    LinearGradient(
-                                        colors: [Color.blue, Color.cyan],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                                .background(Color.blue)
                                 .cornerRadius(16)
-                                .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 5)
+                            }
+
+                            NavigationLink(destination: PhotoUploaderView(eventId: UUID(uuidString: event.id) ?? UUID())) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "photo.on.rectangle.angled")
+                                    Text("Fotoğrafları Yönet")
+                                }
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.orange)
+                                .cornerRadius(16)
+                                .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 5)
                             }
                         }
                         .padding(.bottom, 30)
@@ -313,7 +324,9 @@ struct InfoCard: View {
         organization_id: "club-preview-id",
         organization_name: "Zirve Dağcılık Kulübü",
         organization_logo_url: nil,
-        organizer_name: "Ahmet Yılmaz"
+        organizer_name: "Ahmet Yılmaz",
+        cover_photo_url: nil,
+        photos: nil
     ))
     .environmentObject(AuthManager())
 }

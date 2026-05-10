@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { Calendar, MapPin, Tag, Users, AlertCircle, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Tag, Users, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import EventPhotoUploader from "@/components/events/EventPhotoUploader";
 
 export default function CreateEvent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -53,8 +55,10 @@ export default function CreateEvent() {
         requirements: Object.keys(requirements).length > 0 ? requirements : null,
       };
 
-      await api.post("/api/v1/events/", payload);
-      router.push("/dashboard");
+
+      const res = await api.post("/api/v1/events/", payload);
+      setCreatedEventId(res.data.id);
+      // router.push("/dashboard"); // Redirect removed to show photo uploader
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.detail || "Etkinlik oluşturulurken bir hata oluştu.");
@@ -75,153 +79,177 @@ export default function CreateEvent() {
         </Link>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-3xl p-6 md:p-10 shadow-sm">
-        {error && (
-          <div className="mb-8 bg-red-50 border border-red-100 text-red-600 p-4 rounded-2xl flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm font-medium">{error}</p>
-          </div>
-        )}
-
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-gray-700 mb-2.5">Etkinlik Başlığı <span className="text-red-500">*</span></label>
-              <input 
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all shadow-inner"
-                placeholder="Örn: Kaz Dağları Çevre Temizliği"
-              />
+      {createdEventId ? (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-green-50 border border-green-100 rounded-3xl p-8 text-center shadow-sm">
+            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 size={32} />
             </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-gray-700 mb-2.5">Detaylı Açıklama</label>
-              <textarea 
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={5}
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all shadow-inner resize-none"
-                placeholder="Gönüllüleri neler bekliyor? Neler yapılacak? Açıklayın..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><Tag className="w-4 h-4 text-green-600" /> Kategori <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all shadow-inner appearance-none cursor-pointer"
-                >
-                  <option value="hiking">Yürüyüş (Hiking)</option>
-                  <option value="climbing">Tırmanış (Climbing)</option>
-                  <option value="environment">Çevre & Doğa</option>
-                  <option value="rescue">Arama Kurtarma</option>
-                  <option value="other">Diğer</option>
-                </select>
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                  ↓
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5">Zorluk Derecesi <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <select
-                  name="difficulty"
-                  value={formData.difficulty}
-                  onChange={handleChange}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all shadow-inner appearance-none cursor-pointer"
-                >
-                  <option value="easy">Kolay (Herkes için)</option>
-                  <option value="medium">Orta (Deneyim Gerektirir)</option>
-                  <option value="hard">Zor (Gelişmiş Düzey)</option>
-                  <option value="expert">Uzman (Profesyonel Eğitim Gerektirir)</option>
-                </select>
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                  ↓
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-blue-600" /> Başlangıç Zamanı <span className="text-red-500">*</span></label>
-              <input 
-                type="datetime-local"
-                name="start_date"
-                value={formData.start_date}
-                onChange={handleChange}
-                required
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-inner"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-blue-600" /> Bitiş Zamanı <span className="text-red-500">*</span></label>
-              <input 
-                type="datetime-local"
-                name="end_date"
-                value={formData.end_date}
-                onChange={handleChange}
-                required
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-inner"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-red-500" /> Konum / Adres <span className="text-red-500">*</span></label>
-              <input 
-                name="location_name"
-                value={formData.location_name}
-                onChange={handleChange}
-                required
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all shadow-inner"
-                placeholder="Örn: Balıkesir, İda Dağı Etekleri..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><Users className="w-4 h-4 text-orange-500" /> Kontenjan Sınırı</label>
-              <input 
-                type="number"
-                name="max_volunteers"
-                value={formData.max_volunteers}
-                onChange={handleChange}
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-inner"
-                placeholder="Örn: 20 (Boş bırakılırsa sınırsız)"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2.5">Gerekli Ekipmanlar</label>
-              <input 
-                name="requirements_text"
-                value={formData.requirements_text}
-                onChange={handleChange}
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all shadow-inner"
-                placeholder="Virgülle ayırarak yazın (Çadır, Uyku Tulumu...)"
-              />
-            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Etkinlik Başarıyla Oluşturuldu!</h2>
+            <p className="text-gray-600">Şimdi etkinliğiniz için fotoğraflar ekleyerek daha fazla gönüllünün ilgisini çekebilirsiniz.</p>
           </div>
 
-          <div className="pt-8 border-t border-gray-100 flex justify-end">
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-green-700 hover:bg-green-800 text-white font-bold py-4 px-10 rounded-2xl shadow-lg shadow-green-900/10 transition-all disabled:opacity-50 flex items-center gap-2 text-lg"
+          <EventPhotoUploader eventId={createdEventId} initialPhotos={[]} />
+
+          <div className="flex justify-center pt-4">
+            <Link 
+              href="/dashboard" 
+              className="bg-gray-900 hover:bg-black text-white font-bold py-4 px-12 rounded-2xl shadow-lg transition-all text-lg"
             >
-              {loading && <Loader2 className="w-6 h-6 animate-spin" />}
-              {loading ? "Oluşturuluyor..." : "Etkinliği Yayınla"}
-            </button>
+              Paneli Görüntüle
+            </Link>
           </div>
         </div>
-      </form>
+      ) : (
+        <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-3xl p-6 md:p-10 shadow-sm">
+          {error && (
+            <div className="mb-8 bg-red-50 border border-red-100 text-red-600 p-4 rounded-2xl flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <p className="text-sm font-medium">{error}</p>
+            </div>
+          )}
+
+          <div className="space-y-8">
+            {/* ... rest of the form ... */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-gray-700 mb-2.5">Etkinlik Başlığı <span className="text-red-500">*</span></label>
+                <input 
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all shadow-inner"
+                  placeholder="Örn: Kaz Dağları Çevre Temizliği"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-gray-700 mb-2.5">Detaylı Açıklama</label>
+                <textarea 
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  rows={5}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all shadow-inner resize-none"
+                  placeholder="Gönüllüleri neler bekliyor? Neler yapılacak? Açıklayın..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><Tag className="w-4 h-4 text-green-600" /> Kategori <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all shadow-inner appearance-none cursor-pointer"
+                  >
+                    <option value="hiking">Yürüyüş (Hiking)</option>
+                    <option value="climbing">Tırmanış (Climbing)</option>
+                    <option value="environment">Çevre & Doğa</option>
+                    <option value="rescue">Arama Kurtarma</option>
+                    <option value="other">Diğer</option>
+                  </select>
+                  <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    ↓
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5">Zorluk Derecesi <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <select
+                    name="difficulty"
+                    value={formData.difficulty}
+                    onChange={handleChange}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all shadow-inner appearance-none cursor-pointer"
+                  >
+                    <option value="easy">Kolay (Herkes için)</option>
+                    <option value="medium">Orta (Deneyim Gerektirir)</option>
+                    <option value="hard">Zor (Gelişmiş Düzey)</option>
+                    <option value="expert">Uzman (Profesyonel Eğitim Gerektirir)</option>
+                  </select>
+                  <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    ↓
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-blue-600" /> Başlangıç Zamanı <span className="text-red-500">*</span></label>
+                <input 
+                  type="datetime-local"
+                  name="start_date"
+                  value={formData.start_date}
+                  onChange={handleChange}
+                  required
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-inner"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-blue-600" /> Bitiş Zamanı <span className="text-red-500">*</span></label>
+                <input 
+                  type="datetime-local"
+                  name="end_date"
+                  value={formData.end_date}
+                  onChange={handleChange}
+                  required
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-inner"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><MapPin className="w-4 h-4 text-red-500" /> Konum / Adres <span className="text-red-500">*</span></label>
+                <input 
+                  name="location_name"
+                  value={formData.location_name}
+                  onChange={handleChange}
+                  required
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all shadow-inner"
+                  placeholder="Örn: Balıkesir, İda Dağı Etekleri..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><Users className="w-4 h-4 text-orange-500" /> Kontenjan Sınırı</label>
+                <input 
+                  type="number"
+                  name="max_volunteers"
+                  value={formData.max_volunteers}
+                  onChange={handleChange}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all shadow-inner"
+                  placeholder="Örn: 20 (Boş bırakılırsa sınırsız)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2.5">Gerekli Ekipmanlar</label>
+                <input 
+                  name="requirements_text"
+                  value={formData.requirements_text}
+                  onChange={handleChange}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all shadow-inner"
+                  placeholder="Virgülle ayırarak yazın (Çadır, Uyku Tulumu...)"
+                />
+              </div>
+            </div>
+
+            <div className="pt-8 border-t border-gray-100 flex justify-end">
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-green-700 hover:bg-green-800 text-white font-bold py-4 px-10 rounded-2xl shadow-lg shadow-green-900/10 transition-all disabled:opacity-50 flex items-center gap-2 text-lg"
+              >
+                {loading && <Loader2 className="w-6 h-6 animate-spin" />}
+                {loading ? "Oluşturuluyor..." : "Etkinliği Yayınla"}
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

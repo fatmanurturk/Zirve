@@ -239,10 +239,20 @@ export default function EventsPage() {
                   className="rounded-3xl overflow-hidden bg-white border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-emerald-900/5 transition-all flex flex-col cursor-pointer group hover:-translate-y-1"
                 >
                   <div className={`h-48 ${categoryBgColors[event.category] || "bg-slate-50"} flex items-center justify-center relative overflow-hidden transition-colors border-b border-slate-100`}>
-                     {categoryIcons[event.category] || categoryIcons["other"]}
-                     <span className="text-7xl drop-shadow-md z-10 relative group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
-                       {categoryEmojis[event.category] || "🏕️"}
-                     </span>
+                     {event.cover_photo_url ? (
+                       <img 
+                         src={`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/uploads/${event.cover_photo_url}`} 
+                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                         alt={event.title} 
+                       />
+                     ) : (
+                       <>
+                         {categoryIcons[event.category] || categoryIcons["other"]}
+                         <span className="text-7xl drop-shadow-md z-10 relative group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                           {categoryEmojis[event.category] || "🏕️"}
+                         </span>
+                       </>
+                     )}
                   </div>
                   <div className="p-6 flex-1 flex flex-col">
                     <div className="mb-auto">

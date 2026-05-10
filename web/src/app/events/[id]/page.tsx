@@ -6,7 +6,9 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { Event, Application } from "@/types";
 import { useAuthStore } from "@/store/auth";
-import { Building2, User, ChevronRight, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Building2, User, ChevronRight, CheckCircle2, XCircle, Clock, Image as ImageIcon } from "lucide-react";
+import EventPhotoGallery from "@/components/events/EventPhotoGallery";
+import EventPhotoUploader from "@/components/events/EventPhotoUploader";
 
 const categoryLabels: Record<string, string> = {
   hiking: "Yürüyüş",
@@ -35,10 +37,11 @@ export default function EventDetailPage() {
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState("");
   const [motivation, setMotivation] = useState("");
-  
+
   // Organizer only states
   const [applicants, setApplicants] = useState<Application[]>([]);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
+  const [photos, setPhotos] = useState<any[]>([]);
 
   const isCreator = user?.id === event?.created_by;
 
@@ -47,6 +50,12 @@ export default function EventDetailPage() {
       try {
         const res = await api.get<Event>(`/api/v1/events/${id}`);
         setEvent(res.data);
+        try {
+          const photosRes = await api.get(`/api/v1/event-photos/${res.data.id}`);
+          setPhotos(photosRes.data);
+        } catch {
+          setPhotos([]);
+        }
       } catch {
         router.push("/events");
       } finally {
@@ -139,17 +148,31 @@ export default function EventDetailPage() {
           <span className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full font-medium">
             {difficultyLabels[event.difficulty] || event.difficulty}
           </span>
-          <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-            event.status === "open"
+          <span className={`text-xs px-3 py-1 rounded-full font-medium ${event.status === "open"
               ? "bg-blue-100 text-blue-700"
               : "bg-gray-100 text-gray-500"
-          }`}>
+            }`}>
             {event.status === "open" ? "Açık" : event.status === "closed" ? "Kapalı" : "Tamamlandı"}
           </span>
         </div>
 
         <h1 className="text-3xl font-bold text-gray-900 mb-4">{event.title}</h1>
         <p className="text-gray-600 mb-8 leading-relaxed whitespace-pre-wrap">{event.description}</p>
+
+        {/* Fotoğraf Galerisi */}
+        {isCreator ? (
+          <div className="mb-10 pt-8 border-t border-gray-100">
+            <EventPhotoUploader
+              eventId={event.id}
+              initialPhotos={photos}
+              onPhotosChange={setPhotos}
+            />
+          </div>
+        ) : photos.length > 0 ? (
+          <div className="mb-10 pt-8 border-t border-gray-100">
+            <EventPhotoGallery photos={photos} />
+          </div>
+        ) : null}
 
         {/* Kulüp & Organizatör Kartı */}
         {event.organization_id && (
@@ -299,24 +322,23 @@ export default function EventDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded-full ${
-                        app.status === "approved" ? "bg-green-100 text-green-700" :
-                        app.status === "rejected" ? "bg-red-100 text-red-700" :
-                        "bg-yellow-100 text-yellow-700"
-                      }`}>
+                      <span className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded-full ${app.status === "approved" ? "bg-green-100 text-green-700" :
+                          app.status === "rejected" ? "bg-red-100 text-red-700" :
+                            "bg-yellow-100 text-yellow-700"
+                        }`}>
                         {app.status === "pending" ? "Beklemede" : app.status === "approved" ? "Onaylandı" : "Reddedildi"}
                       </span>
-                      
+
                       {app.status === "pending" && (
                         <div className="flex gap-2">
-                          <button 
+                          <button
                             onClick={() => handleUpdateStatus(app.id, "approved")}
                             className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition"
                             title="Onayla"
                           >
                             <CheckCircle2 className="w-5 h-5" />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleUpdateStatus(app.id, "rejected")}
                             className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
                             title="Reddet"

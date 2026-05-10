@@ -5,7 +5,10 @@ from uuid import UUID
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base_model import BaseModel
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .event_photo import EventPhoto
 
 class EventCategory(enum.Enum):
     HIKING = "hiking"
@@ -49,3 +52,4 @@ class Event(BaseModel):
     created_by_user: Mapped["User"] = relationship(back_populates="events_created")
     applications: Mapped[List["Application"]] = relationship(back_populates="event", cascade="all, delete-orphan")
     user_badges: Mapped[List["UserBadge"]] = relationship(back_populates="earned_from_event")
+    photos: Mapped[List["EventPhoto"]] = relationship(back_populates="event", cascade="all, delete-orphan", order_by="EventPhoto.display_order")

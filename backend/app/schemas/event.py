@@ -60,6 +60,7 @@ class EventResponse(BaseModel):
     organization_name: Optional[str] = None
     organization_logo_url: Optional[str] = None
     organizer_name: Optional[str] = None
+    cover_photo_url: Optional[str] = None
 
 
 class EventListResponse(BaseModel):

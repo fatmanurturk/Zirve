@@ -6,6 +6,7 @@ from .organization_follower import OrganizationFollower
 from .event import Event, EventCategory, EventDifficulty, EventStatus
 from .application import Application, ApplicationStatus
 from .badge import Badge, UserBadge, BadgeCategory
+from .event_photo import EventPhoto
 
 __all__ = [
     "Base", "BaseModel",
@@ -15,4 +16,5 @@ __all__ = [
     "Event", "EventCategory", "EventDifficulty", "EventStatus",
     "Application", "ApplicationStatus",
     "Badge", "UserBadge", "BadgeCategory",
+    "EventPhoto",
 ]

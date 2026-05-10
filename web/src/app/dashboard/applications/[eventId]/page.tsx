@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { ArrowLeft, CheckCircle, XCircle, Clock, MapPin, Calendar, Users, Loader2 } from "lucide-react";
 import Link from "next/link";
+import EventPhotoUploader from "@/components/events/EventPhotoUploader";
 
 export default function ApplicationsReview() {
   const params = useParams();
@@ -92,6 +93,14 @@ export default function ApplicationsReview() {
             {applications.filter(a => a.status === 'approved').length} / {event.max_volunteers || "Sınırsız"} Onaylanan
           </span>
         </div>
+      </div>
+
+      <div className="mb-10">
+        <EventPhotoUploader 
+          eventId={eventId} 
+          initialPhotos={event.photos || []} 
+          onPhotosChange={(newPhotos) => setEvent({ ...event, photos: newPhotos })}
+        />
       </div>
 
       <div className="mb-6 flex items-center justify-between">

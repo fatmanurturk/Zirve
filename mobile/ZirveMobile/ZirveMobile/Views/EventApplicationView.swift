@@ -253,7 +253,9 @@ struct EventApplicationView: View {
             organization_id: "club-preview-id",
             organization_name: "Zirve Dağcılık Kulübü",
             organization_logo_url: nil,
-            organizer_name: "Ahmet Yılmaz"
+            organizer_name: "Ahmet Yılmaz",
+            cover_photo_url: nil,
+            photos: nil
         ))
         .environmentObject(AuthManager())
     }

@@ -178,10 +178,20 @@ export default function Home() {
                 className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col cursor-pointer overflow-hidden group"
               >
                 <div className={`h-40 ${categoryBgColors[event.category] || "bg-slate-50"} flex items-center justify-center relative overflow-hidden transition-colors`}>
-                   {categoryIcons[event.category] || categoryIcons["other"]}
-                   <span className="text-6xl drop-shadow-sm z-10 relative group-hover:scale-110 transition-transform">
-                     {categoryEmojis[event.category] || "🏕️"}
-                   </span>
+                   {event.cover_photo_url ? (
+                     <img 
+                       src={`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/uploads/${event.cover_photo_url}`} 
+                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                       alt={event.title} 
+                     />
+                   ) : (
+                     <>
+                       {categoryIcons[event.category] || categoryIcons["other"]}
+                       <span className="text-6xl drop-shadow-sm z-10 relative group-hover:scale-110 transition-transform">
+                         {categoryEmojis[event.category] || "🏕️"}
+                       </span>
+                     </>
+                   )}
                 </div>
                 <div className="p-6 flex-1 flex flex-col">
                   <div className="mb-auto">
