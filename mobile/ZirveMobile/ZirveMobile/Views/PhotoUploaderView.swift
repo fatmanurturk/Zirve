@@ -45,7 +45,7 @@ struct PhotoUploaderView: View {
                     .cornerRadius(12)
                     .padding()
             }
-            .onChange(of: selectedItems) { newItem in
+            .onChange(of: selectedItems) {
                 Task {
                     selectedImages.removeAll()
                     for item in selectedItems {

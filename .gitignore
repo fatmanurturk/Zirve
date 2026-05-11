@@ -19,3 +19,7 @@ web/.env.local
 
 # Local env
 .env
+
+# Uploads and Scratch
+backend/uploads/
+backend/scratch/

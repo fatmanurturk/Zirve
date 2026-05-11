@@ -3,6 +3,7 @@ import SwiftUI
 struct LoginView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var showRegister = false
+    @State private var showForgotPassword = false
     
     @State private var email = ""
     @State private var password = ""
@@ -91,6 +92,16 @@ struct LoginView: View {
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(Color.gray.opacity(0.15), lineWidth: 1)
                             )
+                        
+                        HStack {
+                            Spacer()
+                            Button("Şifremi Unuttum") {
+                                showForgotPassword = true
+                            }
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
@@ -134,6 +145,10 @@ struct LoginView: View {
         .navigationBarHidden(true)
         .fullScreenCover(isPresented: $showRegister) {
             RegisterView()
+                .environmentObject(authManager)
+        }
+        .fullScreenCover(isPresented: $showForgotPassword) {
+            ForgotPasswordView()
                 .environmentObject(authManager)
         }
         .onAppear {

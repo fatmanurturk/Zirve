@@ -16,7 +16,10 @@ from app.schemas.user import (
     UserRegister,
     UserUpdate,
     UserResponse,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
 )
+from app.services.email import send_reset_password_email
 
 
 router = APIRouter(tags=["auth"])
@@ -107,3 +110,75 @@ async def update_me(
     await db.commit()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    email = request.email.lower()
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        # Don't reveal if user exists or not for security
+        return {"message": "If the email exists, a reset link has been generated."}
+    
+    # Create reset token valid for 15 minutes
+    token = create_access_token(
+        data={"user_id": str(user.id), "type": "reset"},
+        expires_delta=timedelta(minutes=15)
+    )
+    
+    # Send real email
+    try:
+        await send_reset_password_email(email, token)
+        return {"message": "E-posta gönderildi. Lütfen gelen kutunuzu kontrol edin."}
+    except Exception as e:
+        print(f"ERROR: Failed to send email: {e}")
+        # Fallback for development if SMTP fails
+        return {
+            "message": "E-posta gönderilirken bir hata oluştu.",
+            "debug_token": token,
+            "error": str(e)
+        }
+
+
+@router.post("/reset-password")
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        from app.core.security import decode_access_token
+        payload = decode_access_token(request.token)
+        user_id = payload.get("user_id")
+        token_type = payload.get("type")
+        
+        if not user_id or token_type != "reset":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired token"
+            )
+            
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+            
+        user.password_hash = hash_password(request.new_password)
+        db.add(user)
+        await db.commit()
+        
+        return {"message": "Password updated successfully"}
+        
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired token"
+        )

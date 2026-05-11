@@ -331,6 +331,78 @@ class AuthManager: ObservableObject {
         }
     }
     
+    // MARK: - Password Reset
+    func forgotPassword(email: String) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+        
+        guard let url = URL(string: "\(baseURL)/auth/forgot-password") else {
+            isLoading = false
+            return false
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = ["email": email]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                isLoading = false
+                return true
+            }
+        } catch {
+            errorMessage = "Bağlantı hatası: \(error.localizedDescription)"
+        }
+        
+        isLoading = false
+        return false
+    }
+    
+    func resetPassword(token: String, newPassword: String) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+        
+        guard let url = URL(string: "\(baseURL)/auth/reset-password") else {
+            isLoading = false
+            return false
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body = ["token": token, "new_password": newPassword]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    isLoading = false
+                    return true
+                } else {
+                    if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let detail = errorData["detail"] as? String {
+                        errorMessage = detail
+                    } else {
+                        errorMessage = "Şifre sıfırlanamadı."
+                    }
+                }
+            }
+        } catch {
+            errorMessage = "Bağlantı hatası: \(error.localizedDescription)"
+        }
+        
+        isLoading = false
+        return false
+    }
+
     // MARK: - Logout
     func logout() {
         self.accessToken = nil

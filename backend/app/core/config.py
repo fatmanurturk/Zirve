@@ -44,6 +44,15 @@ class Settings(BaseSettings):
         description="Allowed CORS origins for the backend",
     )
 
+    # Email Settings
+    SMTP_HOST: str = Field(default="smtp.gmail.com")
+    SMTP_PORT: int = Field(default=587)
+    SMTP_USER: str = Field(default="")
+    SMTP_PASSWORD: str = Field(default="")
+    SMTP_FROM: str = Field(default="")
+    SMTP_STARTTLS: bool = Field(default=True)
+    SMTP_SSL_TLS: bool = Field(default=False)
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):  # type: ignore[override]
