@@ -45,7 +45,7 @@ export default function ApplicationsPage() {
       }
     };
     fetchApps();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, router]);
 
   const handleWithdraw = async (eventId: string) => {
     if (!confirm("Başvuruyu geri çekmek istediğinize emin misiniz?")) return;

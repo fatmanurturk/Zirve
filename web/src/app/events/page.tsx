@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
@@ -8,8 +8,9 @@ import {
   MapPin, Calendar, Filter, Loader2, ChevronRight 
 } from "lucide-react";
 import api from "@/lib/api";
+import { Event } from "@/types";
 
-const categoryIcons: any = {
+const categoryIcons: Record<string, React.ReactNode> = {
   hiking: <Mountain className="w-16 h-16 text-emerald-600 opacity-10 absolute -bottom-4 -right-4" />,
   climbing: <Mountain className="w-16 h-16 text-orange-600 opacity-10 absolute -bottom-4 -right-4" />,
   environment: <TreePine className="w-16 h-16 text-emerald-600 opacity-10 absolute -bottom-4 -right-4" />,
@@ -17,7 +18,7 @@ const categoryIcons: any = {
   other: <Flame className="w-16 h-16 text-purple-600 opacity-10 absolute -bottom-4 -right-4" />,
 };
 
-const categoryLabels: any = {
+const categoryLabels: Record<string, string> = {
   hiking: "Yürüyüş",
   climbing: "Tırmanış",
   environment: "Çevre & Doğa",
@@ -25,14 +26,14 @@ const categoryLabels: any = {
   other: "Diğer"
 };
 
-const difficultyLabels: any = {
+const difficultyLabels: Record<string, string> = {
   easy: "Kolay",
   medium: "Orta",
   hard: "Zor",
   expert: "Uzman",
 };
 
-const categoryEmojis: any = {
+const categoryEmojis: Record<string, string> = {
   hiking: "⛰️",
   climbing: "🧗",
   environment: "🌲",
@@ -40,7 +41,7 @@ const categoryEmojis: any = {
   other: "🔥"
 };
 
-const categoryBgColors: any = {
+const categoryBgColors: Record<string, string> = {
   hiking: "bg-emerald-50",
   climbing: "bg-orange-50",
   environment: "bg-emerald-50",
@@ -51,7 +52,7 @@ const categoryBgColors: any = {
 export default function EventsPage() {
   const router = useRouter();
   
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters state
@@ -59,11 +60,7 @@ export default function EventsPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get("/api/v1/events/?status=open&limit=100");
@@ -75,7 +72,11 @@ export default function EventsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   const handleCategoryToggle = (catKey: string) => {
     setSelectedCategories(prev => 

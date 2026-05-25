@@ -1,7 +1,7 @@
 // filepath: web/src/components/events/EventPhotoUploader.tsx
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Upload, X, Check, Star, Trash2, Loader2 } from "lucide-react";
 import { EventPhoto } from "@/types";
 import { eventPhotosApi } from "@/lib/api/eventPhotos";
@@ -57,8 +57,8 @@ export default function EventPhotoUploader({ eventId, initialPhotos, onPhotosCha
       setPhotos(newPhotos);
       onPhotosChange?.(newPhotos);
       setPendingFiles([]); // clear pending files after successful upload
-    } catch (err: any) {
-      setError(err.message || "Yükleme sırasında bir hata oluştu.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Yükleme sırasında bir hata oluştu.");
     } finally {
       setUploading(false);
     }
@@ -70,21 +70,21 @@ export default function EventPhotoUploader({ eventId, initialPhotos, onPhotosCha
       const newPhotos = photos.filter(p => p.id !== photoId);
       setPhotos(newPhotos);
       onPhotosChange?.(newPhotos);
-    } catch (err) {
+    } catch {
       setError("Fotoğraf silinemedi.");
     }
   };
 
   const handleSetCover = async (photoId: string) => {
     try {
-      const updated = await eventPhotosApi.setCover(eventId, photoId);
+      await eventPhotosApi.setCover(eventId, photoId);
       const newPhotos = photos.map(p => ({
         ...p,
         is_cover: p.id === photoId
       }));
       setPhotos(newPhotos);
       onPhotosChange?.(newPhotos);
-    } catch (err) {
+    } catch {
       setError("Kapak fotoğrafı ayarlanamadı.");
     }
   };

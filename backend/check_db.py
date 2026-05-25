@@ -4,13 +4,12 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import text
 from app.core.security import verify_password
 async def check():
     engine = create_async_engine("postgresql+asyncpg://zirve:zirve123@localhost:5433/zirve_db")
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async_session = async_sessionmaker(engine, expire_on_commit=False)
     
     async with async_session() as session:
         result = await session.execute(text("SELECT email, password_hash, is_active FROM users"))

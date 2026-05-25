@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
-  Mountain, MapPin, Calendar, Users, Droplets, Snowflake, 
-  MessageSquare, TreePine, Flame, Loader2, Search
+  Mountain, MapPin, Calendar, Users, 
+  MessageSquare, TreePine, Flame, Loader2
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
+import { Event, Application, UserBadge, UserStats, HomepageStats } from "@/types";
 
-const categoryIcons: any = {
+const categoryIcons: Record<string, React.ReactNode> = {
   hiking: <Mountain className="w-16 h-16 text-emerald-600 opacity-10 absolute -bottom-4 -right-4" />,
   climbing: <Mountain className="w-16 h-16 text-orange-600 opacity-10 absolute -bottom-4 -right-4" />,
   environment: <TreePine className="w-16 h-16 text-emerald-600 opacity-10 absolute -bottom-4 -right-4" />,
@@ -18,7 +19,7 @@ const categoryIcons: any = {
   other: <Flame className="w-16 h-16 text-purple-600 opacity-10 absolute -bottom-4 -right-4" />,
 };
 
-const categoryLabels: any = {
+const categoryLabels: Record<string, string> = {
   hiking: "Yürüyüş",
   climbing: "Tırmanış",
   environment: "Çevre & Doğa",
@@ -26,7 +27,7 @@ const categoryLabels: any = {
   other: "Diğer"
 };
 
-const categoryEmojis: any = {
+const categoryEmojis: Record<string, string> = {
   hiking: "⛰️",
   climbing: "🧗",
   environment: "🌲",
@@ -34,7 +35,7 @@ const categoryEmojis: any = {
   other: "🔥"
 };
 
-const categoryBgColors: any = {
+const categoryBgColors: Record<string, string> = {
   hiking: "bg-emerald-50",
   climbing: "bg-orange-50",
   environment: "bg-emerald-50",
@@ -44,28 +45,24 @@ const categoryBgColors: any = {
 
 export default function Home() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   
-  const [stats, setStats] = useState({ active_volunteers: 248, upcoming_events: 34, cities_count: 12 });
-  const [events, setEvents] = useState<any[]>([]);
-  const [applications, setApplications] = useState<any[]>([]);
-  const [badges, setBadges] = useState<any[]>([]);
-  const [userStats, setUserStats] = useState({ total_impact_score: 0 });
+  const [stats, setStats] = useState<HomepageStats>({ active_volunteers: 248, upcoming_events: 34, cities_count: 12 });
+  const [events, setEvents] = useState<Event[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [badges, setBadges] = useState<UserBadge[]>([]);
+  const [userStats, setUserStats] = useState<Partial<UserStats>>({ total_impact_score: 0 });
   const [loading, setLoading] = useState(true);
 
   // Volunteer panel state
   const [activeTab, setActiveTab] = useState<"active" | "pending" | "history">("active");
 
-  useEffect(() => {
-    loadHomepageData();
-  }, [isAuthenticated]);
-
-  const loadHomepageData = async () => {
+  const loadHomepageData = useCallback(async () => {
     try {
       setLoading(true);
       const [statsRes, eventsRes] = await Promise.all([
-        api.get("/api/v1/stats").catch(() => null),
-        api.get("/api/v1/events/?status=open&limit=3").catch(() => null)
+        api.get<HomepageStats>("/api/v1/stats").catch(() => null),
+        api.get<{ items: Event[] }>("/api/v1/events/?status=open&limit=3").catch(() => null)
       ]);
 
       if (statsRes?.data) setStats(statsRes.data);
@@ -73,9 +70,9 @@ export default function Home() {
 
       if (isAuthenticated) {
         const [appsRes, badgesRes, myStatsRes] = await Promise.all([
-          api.get("/api/v1/users/me/applications").catch(() => null),
-          api.get("/api/v1/badges/users/me").catch(() => null),
-          api.get("/api/v1/volunteers/me/stats").catch(() => null)
+          api.get<{ items: Application[] }>("/api/v1/users/me/applications").catch(() => null),
+          api.get<UserBadge[]>("/api/v1/badges/users/me").catch(() => null),
+          api.get<UserStats>("/api/v1/volunteers/me/stats").catch(() => null)
         ]);
         if (appsRes?.data) setApplications(appsRes.data.items || []);
         if (badgesRes?.data) setBadges(badgesRes.data);
@@ -86,7 +83,11 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    loadHomepageData();
+  }, [isAuthenticated, loadHomepageData]);
 
   const filteredApps = applications.filter(app => {
     if (activeTab === "active") return app.status === "approved";
@@ -178,12 +179,12 @@ export default function Home() {
                 className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col cursor-pointer overflow-hidden group"
               >
                 <div className={`h-40 ${categoryBgColors[event.category] || "bg-slate-50"} flex items-center justify-center relative overflow-hidden transition-colors`}>
-                   {event.cover_photo_url ? (
-                     <img 
-                       src={`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/uploads/${event.cover_photo_url}`} 
-                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                       alt={event.title} 
-                     />
+                    {event.cover_photo_url ? (
+                      <img 
+                        src={`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"}/uploads/${event.cover_photo_url}`} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                        alt={event.title} 
+                      />
                    ) : (
                      <>
                        {categoryIcons[event.category] || categoryIcons["other"]}
@@ -252,7 +253,7 @@ export default function Home() {
                 {filteredApps.length === 0 ? (
                   <div className="text-center py-12 text-slate-400 font-medium bg-slate-50 rounded-2xl border border-dashed border-slate-200">Bu sekmede herhangi bir kayıt bulunamadı.</div>
                 ) : (
-                  filteredApps.map((app, index) => (
+                  filteredApps.map((app) => (
                     <div key={app.id} onClick={() => router.push(`/events/${app.event_id}`)} className="flex items-center justify-between p-5 rounded-2xl bg-white border border-slate-100 hover:border-emerald-200 hover:shadow-md transition-all group cursor-pointer">
                       <div className="flex items-center gap-5">
                         <div className={`w-14 h-14 rounded-2xl ${app.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : app.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'} font-bold flex items-center justify-center text-xl shadow-sm group-hover:scale-105 transition-transform`}>
@@ -301,7 +302,7 @@ export default function Home() {
                   
                   <div className="relative z-10">
                     <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden mb-4 shadow-inner">
-                      <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full relative" style={{ width: `${Math.min(100, Math.max(5, userStats.total_impact_score / 10))}%` }}>
+                      <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full relative" style={{ width: `${Math.min(100, Math.max(5, (userStats.total_impact_score || 0) / 10))}%` }}>
                         <div className="absolute inset-0 bg-white/30 w-1/2 rounded-full blur-sm" />
                       </div>
                     </div>

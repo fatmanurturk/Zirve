@@ -13,17 +13,22 @@ struct ContentView: View {
                             .tabItem {
                                 Label("Ana Sayfa", systemImage: "house.fill")
                             }
-                            
+
                         OrganizerDashboardView()
                             .tabItem {
                                 Label("Panel", systemImage: "chart.bar.doc.horizontal")
                             }
-                        
+
                         CreateEventView()
                             .tabItem {
                                 Label("Yeni Etkinlik", systemImage: "plus.circle.fill")
                             }
-                        
+
+                        AIChatView()
+                            .tabItem {
+                                Label("AI Asistan", systemImage: "sparkles")
+                            }
+
                         ProfileView()
                             .tabItem {
                                 Label("Profil", systemImage: "person.fill")
@@ -36,12 +41,17 @@ struct ContentView: View {
                             .tabItem {
                                 Label("Ana Sayfa", systemImage: "house.fill")
                             }
-                        
+
                         ExploreView()
                             .tabItem {
                                 Label("Keşfet", systemImage: "map.fill")
                             }
-                        
+
+                        AIChatView()
+                            .tabItem {
+                                Label("AI Asistan", systemImage: "sparkles")
+                            }
+
                         ProfileView()
                             .tabItem {
                                 Label("Profil", systemImage: "person.fill")

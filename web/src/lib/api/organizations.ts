@@ -1,3 +1,4 @@
+import { Application } from "../../types";
 import api from "../api";
 
 export interface OrganizationStats {
@@ -27,7 +28,7 @@ export interface Event {
   city?: string;
   max_volunteers?: number;
   status: string;
-  applications?: any[];
+  applications?: Application[];
 }
 
 export const getOrganization = async (id: string): Promise<OrganizationProfile> => {

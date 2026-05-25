@@ -1,41 +1,84 @@
 import SwiftUI
 
+// MARK: - Badge Models
+struct BadgeDetail: Codable, Identifiable {
+    let id: String
+    let name: String
+    let description: String?
+    let icon_url: String?
+    let category: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, icon_url, category
+    }
+}
+
+struct UserBadgeItem: Codable, Identifiable {
+    let id: String
+    let badge: BadgeDetail
+
+    enum CodingKeys: String, CodingKey {
+        case id, badge
+    }
+}
+
+// MARK: - Application Model (for history)
+struct ApplicationHistory: Codable, Identifiable {
+    let id: String
+    let event_id: String
+    let status: String
+    let applied_at: String
+}
+
 struct ProfileView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var showEditProfile = false
     @State private var showClubSetup = false
-    
-    // Web'deki yeşil renk tonu: green-700
+    @State private var userBadges: [UserBadgeItem] = []
+    @State private var applications: [ApplicationHistory] = []
+    @State private var isLoadingExtras = false
+
     private let accentGreen = Color(red: 0.2, green: 0.5, blue: 0.2)
-    
+    private let baseURL = "http://localhost:8000/api/v1"
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    
+
                     // MARK: - Kullanıcı Bilgi Kartı
                     userInfoCard
-                    
+
                     // MARK: - Kulüp Yönetimi (Sadece Organizatör)
                     if authManager.currentUser?.role.lowercased() == "organizer" {
                         organizerClubCard
                     }
-                    
+
                     // MARK: - İstatistik Kartları
                     if let stats = authManager.userStats {
                         statsGrid(stats: stats)
                     }
-                    
+
+                    // MARK: - Rozetler
+                    if !userBadges.isEmpty {
+                        badgesCard
+                    }
+
                     // MARK: - Gönüllü Profil Detayları
                     if let profile = authManager.volunteerProfile {
                         volunteerProfileCard(profile: profile)
                     }
-                    
+
+                    // MARK: - Başvuru Geçmişi
+                    if !applications.isEmpty {
+                        applicationsCard
+                    }
+
                     // MARK: - Profil Tamamlama Çağrısı
                     if authManager.volunteerProfile == nil && authManager.currentUser?.role.lowercased() == "volunteer" {
                         profileSetupCard
                     }
-                    
+
                     // MARK: - Çıkış Yap Butonu
                     logoutButton
                         .padding(.top, 8)
@@ -65,8 +108,47 @@ struct ProfileView: View {
             }
             .refreshable {
                 await authManager.fetchUserData()
+                await loadExtras()
+            }
+            .task {
+                await loadExtras()
             }
         }
+    }
+
+    // MARK: - Load Badges & Applications
+    private func loadExtras() async {
+        guard let token = authManager.accessToken,
+              authManager.currentUser?.role.lowercased() == "volunteer" else { return }
+
+        isLoadingExtras = true
+
+        async let badgesTask: [UserBadgeItem]? = fetchBadges(token: token)
+        async let appsTask: [ApplicationHistory]? = fetchApplications(token: token)
+
+        let (badges, apps) = await (badgesTask, appsTask)
+        userBadges = badges ?? []
+        applications = apps ?? []
+        isLoadingExtras = false
+    }
+
+    private func fetchBadges(token: String) async -> [UserBadgeItem]? {
+        guard let url = URL(string: "\(baseURL)/volunteers/me/badges") else { return nil }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let (data, response) = try? await URLSession.shared.data(for: req),
+              let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 else { return nil }
+        return try? JSONDecoder().decode([UserBadgeItem].self, from: data)
+    }
+
+    private func fetchApplications(token: String) async -> [ApplicationHistory]? {
+        guard let url = URL(string: "\(baseURL)/users/me/applications?limit=5") else { return nil }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let (data, response) = try? await URLSession.shared.data(for: req),
+              let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 else { return nil }
+        struct Wrapper: Codable { let items: [ApplicationHistory] }
+        return (try? JSONDecoder().decode(Wrapper.self, from: data))?.items
     }
     
     // MARK: - Kullanıcı Bilgi Kartı
@@ -286,6 +368,144 @@ struct ProfileView: View {
         )
     }
     
+    // MARK: - Rozetler Kartı
+    private var badgesCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Rozetlerim", systemImage: "medal.fill")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                Spacer()
+                Text("\(userBadges.count) rozet")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(userBadges.prefix(6)) { ub in
+                    VStack(spacing: 6) {
+                        ZStack {
+                            Circle()
+                                .fill(accentGreen.opacity(0.1))
+                                .frame(width: 48, height: 48)
+                            Text(badgeEmoji(category: ub.badge.category))
+                                .font(.title2)
+                        }
+                        Text(ub.badge.name)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.03), radius: 6, x: 0, y: 2)
+    }
+
+    private func badgeEmoji(category: String) -> String {
+        switch category {
+        case "summit": return "🏔️"
+        case "nature": return "🌲"
+        case "team": return "🤝"
+        case "milestone": return "🏆"
+        default: return "🎖️"
+        }
+    }
+
+    // MARK: - Başvuru Geçmişi Kartı
+    private var applicationsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Son Başvurularım", systemImage: "doc.text.fill")
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+
+            VStack(spacing: 10) {
+                ForEach(applications) { app in
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(statusColor(app.status).opacity(0.1))
+                                .frame(width: 40, height: 40)
+                            Image(systemName: statusIcon(app.status))
+                                .font(.subheadline)
+                                .foregroundColor(statusColor(app.status))
+                        }
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Etkinlik Başvurusu")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            Text(formatDate(app.applied_at))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Text(statusLabel(app.status))
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(statusColor(app.status))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(statusColor(app.status).opacity(0.1))
+                            .cornerRadius(8)
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(UIColor.systemBackground))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.03), radius: 6, x: 0, y: 2)
+    }
+
+    private func statusColor(_ status: String) -> Color {
+        switch status {
+        case "approved": return .green
+        case "rejected": return .red
+        case "checked_in": return .blue
+        default: return .orange
+        }
+    }
+
+    private func statusIcon(_ status: String) -> String {
+        switch status {
+        case "approved": return "checkmark.circle.fill"
+        case "rejected": return "xmark.circle.fill"
+        case "checked_in": return "mappin.circle.fill"
+        default: return "clock.fill"
+        }
+    }
+
+    private func statusLabel(_ status: String) -> String {
+        switch status {
+        case "approved": return "Onaylandı"
+        case "rejected": return "Reddedildi"
+        case "checked_in": return "Check-in"
+        case "pending": return "Bekliyor"
+        default: return status.capitalized
+        }
+    }
+
     // MARK: - Çıkış Yap Butonu
     private var logoutButton: some View {
         Button(action: {
@@ -309,7 +529,19 @@ struct ProfileView: View {
         }
     }
     
-    // MARK: - Helper
+    // MARK: - Helpers
+    private func formatDate(_ iso: String) -> String {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: iso) {
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "tr_TR")
+            df.dateStyle = .medium
+            return df.string(from: d)
+        }
+        return iso
+    }
+
     private func experienceLevelText(_ level: String) -> String {
         switch level {
         case "beginner": return "Başlangıç"

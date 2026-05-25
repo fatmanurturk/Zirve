@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.ai import router as ai_router
 from app.api.v1.applications import router as applications_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.badges import router as badges_router
@@ -31,6 +32,7 @@ app.add_middleware(
 )
 
 api_router = APIRouter()
+api_router.include_router(ai_router, prefix="/api/v1")
 api_router.include_router(auth_router, prefix="/api/v1/auth")
 api_router.include_router(event_photos_router, prefix="/api/v1/event-photos")
 api_router.include_router(events_router, prefix="/api/v1/events")

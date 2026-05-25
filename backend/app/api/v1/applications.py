@@ -110,7 +110,7 @@ async def list_event_applications(
     event = event_result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Etkinlik bulunamadi.")
-    if str(event.created_by) != str(current_user.id):
+    if event.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Sadece etkinlik sahibi gorebilir.")
     query = (
         select(Application, User.full_name, User.avatar_url)
@@ -148,7 +148,7 @@ async def update_application_status(
     event = event_result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Etkinlik bulunamadi.")
-    if str(event.created_by) != str(current_user.id):
+    if event.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Sadece etkinlik sahibi guncelleyebilir.")
     result = await db.execute(
         select(Application, User.full_name, User.avatar_url)
@@ -209,7 +209,7 @@ async def checkin_application(
     event = event_result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Etkinlik bulunamadi.")
-    if str(event.created_by) != str(current_user.id):
+    if event.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Bu islem icin yetkiniz yok.")
     result = await db.execute(
         select(Application).where(
@@ -253,7 +253,7 @@ async def undo_checkin(
     event = event_result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Etkinlik bulunamadi.")
-    if str(event.created_by) != str(current_user.id):
+    if event.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Bu islem icin yetkiniz yok.")
     result = await db.execute(
         select(Application).where(
@@ -296,7 +296,7 @@ async def list_checkins(
     event = event_result.scalar_one_or_none()
     if event is None:
         raise HTTPException(status_code=404, detail="Etkinlik bulunamadi.")
-    if str(event.created_by) != str(current_user.id):
+    if event.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Bu islem icin yetkiniz yok.")
     count_result = await db.execute(
         select(func.count()).select_from(Application).where(

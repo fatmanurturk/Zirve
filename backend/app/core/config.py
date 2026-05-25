@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env"),  # backend/ veya proje kökü
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     SMTP_FROM: str = Field(default="")
     SMTP_STARTTLS: bool = Field(default=True)
     SMTP_SSL_TLS: bool = Field(default=False)
+
+    # Groq AI Settings
+    GROQ_API_KEY: str = Field(default="")
+    GROQ_API_URL: str = Field(default="https://api.groq.com/openai/v1/chat/completions")
+    GROQ_MODEL: str = Field(default="llama-3.3-70b-versatile")
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api";
-import { Event, Application } from "@/types";
+import { Event, Application, EventPhoto } from "@/types";
 import { useAuthStore } from "@/store/auth";
-import { Building2, User, ChevronRight, CheckCircle2, XCircle, Clock, Image as ImageIcon } from "lucide-react";
+import { Building2, User, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
 import EventPhotoGallery from "@/components/events/EventPhotoGallery";
 import EventPhotoUploader from "@/components/events/EventPhotoUploader";
 
@@ -41,9 +41,9 @@ export default function EventDetailPage() {
   // Organizer only states
   const [applicants, setApplicants] = useState<Application[]>([]);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
-  const [photos, setPhotos] = useState<any[]>([]);
+  const [photos, setPhotos] = useState<EventPhoto[]>([]);
 
-  const isCreator = user?.id === event?.created_by;
+  const isCreator = !!user?.id && !!event?.created_by && user.id === event.created_by;
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -63,25 +63,28 @@ export default function EventDetailPage() {
       }
     };
     fetchEvent();
-  }, [id]);
+  }, [id, router]);
+
+  const fetchApplicants = useCallback(async () => {
+    if (!id || !isCreator) return;
+    
+    setLoadingApplicants(true);
+    
+    try {
+      const res = await api.get(`/api/v1/events/${id}/applications`);
+      setApplicants(res.data.items || []);
+    } catch {
+      console.error("Başvurular yüklenemedi");
+    } finally {
+      setLoadingApplicants(false);
+    }
+  }, [id, isCreator, user?.id, event?.created_by]);
 
   useEffect(() => {
     if (isCreator) {
       fetchApplicants();
     }
-  }, [isCreator]);
-
-  const fetchApplicants = async () => {
-    setLoadingApplicants(true);
-    try {
-      const res = await api.get(`/api/v1/events/${id}/applications`);
-      setApplicants(res.data.items || []);
-    } catch (err) {
-      console.error("Başvurular yüklenemedi");
-    } finally {
-      setLoadingApplicants(false);
-    }
-  };
+  }, [isCreator, fetchApplicants]);
 
   const handleApply = async () => {
     if (!isAuthenticated) {
@@ -95,8 +98,9 @@ export default function EventDetailPage() {
         motivation_letter: motivation || null,
       });
       setApplied(true);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Başvuru sırasında hata oluştu.");
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string } } };
+      setError(axiosError.response?.data?.detail || (err instanceof Error ? err.message : "Başvuru sırasında hata oluştu."));
     } finally {
       setApplying(false);
     }
@@ -108,7 +112,7 @@ export default function EventDetailPage() {
         status: status,
       });
       fetchApplicants();
-    } catch (err) {
+    } catch {
       alert("Durum güncellenirken hata oluştu.");
     }
   };
@@ -305,7 +309,7 @@ export default function EventDetailPage() {
                       <Link href={`/volunteers/${app.volunteer_id}`} className="hover:opacity-80 transition">
                         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-xl overflow-hidden border-2 border-white shadow-sm">
                           {app.volunteer_avatar_url ? (
-                            <img src={app.volunteer_avatar_url} className="w-full h-full object-cover" />
+                            <img src={app.volunteer_avatar_url} alt={app.volunteer_name || "Gönüllü"} className="w-full h-full object-cover" />
                           ) : (
                             "👤"
                           )}
@@ -353,7 +357,7 @@ export default function EventDetailPage() {
                   {app.motivation_letter && (
                     <div className="mt-4 p-4 bg-gray-100 rounded-xl">
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Motivasyon Mektubu</p>
-                      <p className="text-sm text-gray-600 leading-relaxed italic">"{app.motivation_letter}"</p>
+                      <p className="text-sm text-gray-600 leading-relaxed italic">&quot;{app.motivation_letter}&quot;</p>
                     </div>
                   )}
                 </div>

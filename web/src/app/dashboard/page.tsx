@@ -5,9 +5,10 @@ import api from "@/lib/api";
 import Link from "next/link";
 import { Plus, Users, Calendar, MapPin, Inbox, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Event } from "@/types";
 
 export default function DashboardHome() {
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 

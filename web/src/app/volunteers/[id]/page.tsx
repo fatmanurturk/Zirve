@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "react-router-dom"; // Actually, using next/navigation
 import api from "@/lib/api";
-import { UserStats, VolunteerProfile, UserBadge } from "@/types";
 import { useParams as useNextParams, useRouter as useNextRouter } from "next/navigation";
 
 interface PublicProfile {
@@ -67,7 +65,7 @@ export default function VolunteerPublicProfilePage() {
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 text-center">
         <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center text-4xl overflow-hidden mx-auto mb-6 border-4 border-white shadow-md">
           {profile.avatar_url ? (
-            <img src={profile.avatar_url} className="w-full h-full object-cover" />
+            <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" />
           ) : (
             "👤"
           )}

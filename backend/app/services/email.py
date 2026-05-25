@@ -1,26 +1,33 @@
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from pydantic import EmailStr
 from app.core.config import get_settings
-from pathlib import Path
 
 settings = get_settings()
 
-conf = ConnectionConfig(
-    MAIL_USERNAME=settings.SMTP_USER,
-    MAIL_PASSWORD=settings.SMTP_PASSWORD,
-    MAIL_FROM=settings.SMTP_FROM,
-    MAIL_PORT=settings.SMTP_PORT,
-    MAIL_SERVER=settings.SMTP_HOST,
-    MAIL_STARTTLS=settings.SMTP_STARTTLS,
-    MAIL_SSL_TLS=settings.SMTP_SSL_TLS,
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True,
-)
+
+def _get_mail_conf() -> ConnectionConfig:
+    if not settings.SMTP_FROM or "@" not in settings.SMTP_FROM:
+        raise RuntimeError(
+            "SMTP configuration eksik veya geçersiz: SMTP_FROM ayarlanmamış."
+        )
+
+    return ConnectionConfig(
+        MAIL_USERNAME=settings.SMTP_USER,
+        MAIL_PASSWORD=settings.SMTP_PASSWORD,
+        MAIL_FROM=settings.SMTP_FROM,
+        MAIL_PORT=settings.SMTP_PORT,
+        MAIL_SERVER=settings.SMTP_HOST,
+        MAIL_STARTTLS=settings.SMTP_STARTTLS,
+        MAIL_SSL_TLS=settings.SMTP_SSL_TLS,
+        USE_CREDENTIALS=True,
+        VALIDATE_CERTS=True,
+    )
+
 
 async def send_reset_password_email(email_to: EmailStr, token: str):
-    # In a real app, this would be a URL pointing to your frontend
+    conf = _get_mail_conf()
     reset_url = f"http://localhost:3000/reset-password?token={token}"
-    
+
     message_body = f"""
     <html>
     <body>
@@ -44,7 +51,7 @@ async def send_reset_password_email(email_to: EmailStr, token: str):
         subject="Zirve - Şifre Sıfırlama İsteği",
         recipients=[email_to],
         body=message_body,
-        subtype=MessageType.html
+        subtype=MessageType.html,
     )
 
     fm = FastMail(conf)

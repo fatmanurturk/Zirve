@@ -46,9 +46,10 @@ export default function ClubSetupPage() {
           });
           setIsUpdate(true);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         // 404 is expected for new organizers
-        if (err.response?.status !== 404) {
+        const axiosError = err as { response?: { status?: number } };
+        if (axiosError.response?.status !== 404) {
           console.error("Error fetching organization:", err);
         }
       } finally {
@@ -85,8 +86,9 @@ export default function ClubSetupPage() {
         await api.post("/api/v1/organizations/", payload);
       }
       router.push("/profile");
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Bir hata oluştu. Lütfen tekrar deneyin.");
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string } } };
+      setError(axiosError.response?.data?.detail || "Bir hata oluştu. Lütfen tekrar deneyin.");
     } finally {
       setIsLoading(false);
     }

@@ -83,8 +83,9 @@ export default function ProfileSetupPage() {
             // 3. Redirect to profile
             router.push("/profile");
             router.refresh(); // Refresh to fetch new profile data
-        } catch (err: any) {
-            setError(err.response?.data?.detail || "Profil oluşturulurken bir hata oluştu.");
+        } catch (err: unknown) {
+            const axiosError = err as { response?: { data?: { detail?: string } } };
+            setError(axiosError.response?.data?.detail || "Profil oluşturulurken bir hata oluştu.");
             setLoading(false);
         }
     };

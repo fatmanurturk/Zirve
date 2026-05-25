@@ -22,8 +22,9 @@ export default function ForgotPasswordPage() {
       if (res.data.debug_token) {
         setDebugToken(res.data.debug_token);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.detail || "Bir hata oluştu. Lütfen tekrar deneyin.");
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string } } };
+      setError(axiosError.response?.data?.detail || "Bir hata oluştu. Lütfen tekrar deneyin.");
     } finally {
       setIsLoading(false);
     }

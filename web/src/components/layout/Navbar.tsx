@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth";
-import { Mountain } from "lucide-react";
+import { useAIChatStore } from "@/store/aiChat";
+import { Mountain, Sparkles } from "lucide-react";
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { toggle } = useAIChatStore();
 
   return (
     <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
@@ -19,6 +21,14 @@ export default function Navbar() {
           <Link href="/events" className="text-slate-600 hover:text-emerald-600 transition-colors text-sm font-medium">
             Etkinlikler
           </Link>
+
+          <button
+            onClick={toggle}
+            className="flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-4 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            AI Asistan
+          </button>
 
           {isAuthenticated ? (
             <>

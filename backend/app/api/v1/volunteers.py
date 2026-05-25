@@ -14,6 +14,7 @@ from app.models.application import Application, ApplicationStatus
 from app.models.badge import UserBadge
 from app.models.user import User, UserRole
 from app.models.volunteer import VolunteerEquipment, VolunteerProfile
+from app.schemas.badge import UserBadgeResponse
 from app.schemas.volunteer import (
     EquipmentCreate,
     PublicProfileResponse,
@@ -209,6 +210,21 @@ async def get_my_stats(
         total_impact_score=int(total_impact_score),
         badge_count=int(badge_count),
     )
+
+
+@router.get("/volunteers/me/badges", response_model=list[UserBadgeResponse])
+async def get_my_badges(
+    db: DbSessionDep,
+    current_user: CurrentUserDep,
+) -> list[UserBadgeResponse]:
+    result = await db.execute(
+        select(UserBadge)
+        .options(selectinload(UserBadge.badge))
+        .where(UserBadge.user_id == current_user.id)
+        .order_by(UserBadge.earned_at.desc())
+    )
+    user_badges = result.scalars().all()
+    return [UserBadgeResponse.model_validate(ub) for ub in user_badges]
 
 
 @router.get("/volunteers/{user_id}/profile", response_model=PublicProfileResponse)

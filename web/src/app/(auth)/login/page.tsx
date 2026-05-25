@@ -18,11 +18,19 @@ export default function LoginPage() {
     try {
       await login(email, password);
       router.push("/events");
-    } catch (error: any) {
-      if (error.response?.data?.detail) {
-        setError(error.response.data.detail);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number; data?: { detail?: unknown } } };
+      const detail = axiosError.response?.data?.detail;
+      const status = axiosError.response?.status;
+
+      if (status === 401 || (typeof detail === "string" && detail.toLowerCase().includes("incorrect"))) {
+        setError("E-posta veya şifre hatalı. Lütfen tekrar deneyin.");
+      } else if (typeof detail === "string" && detail) {
+        setError(detail);
+      } else if (status === 0 || !axiosError.response) {
+        setError("Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.");
       } else {
-        setError("Sunucuya bağlanılamadı veya bir hata oluştu. Lütfen tekrar deneyin.");
+        setError("Bir hata oluştu. Lütfen tekrar deneyin.");
       }
     }
   };

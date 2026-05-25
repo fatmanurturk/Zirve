@@ -27,9 +27,29 @@ class ClubProfileViewModel: ObservableObject {
     @Published var club: ClubProfile?
     @Published var events: [Event] = []
     @Published var isLoading = true
+    @Published var isFollowing = false
+    @Published var isFollowLoading = false
     @Published var errorMessage: String?
 
     private let baseURL = "http://localhost:8000/api/v1"
+
+    func toggleFollow(clubId: String, token: String?) async {
+        guard let token = token, let url = URL(string: "\(baseURL)/organizations/\(clubId)/follow") else { return }
+        isFollowLoading = true
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        if let (data, response) = try? await URLSession.shared.data(for: request),
+           let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+            let status = json["status"] ?? ""
+            isFollowing = (status == "followed")
+        }
+        isFollowLoading = false
+    }
 
     func load(clubId: String) async {
         isLoading = true
@@ -68,6 +88,7 @@ struct ClubProfileView: View {
     let clubName: String?
 
     @StateObject private var viewModel = ClubProfileViewModel()
+    @EnvironmentObject var authManager: AuthManager
     @Environment(\.dismiss) private var dismiss
 
     private let accentGreen = Color(red: 0.05, green: 0.45, blue: 0.3)
@@ -83,6 +104,11 @@ struct ClubProfileView: View {
 
                     VStack(alignment: .leading, spacing: 24) {
                         // Stats
+                        // Follow Button (sadece gönüllüler için)
+                        if authManager.currentUser?.role.lowercased() == "volunteer" {
+                            followButton
+                        }
+
                         if let stats = club.stats {
                             clubStatsGrid(stats: stats)
                         }
@@ -181,6 +207,42 @@ struct ClubProfileView: View {
         .task {
             await viewModel.load(clubId: clubId)
         }
+    }
+
+    // MARK: - Follow Button
+    private var followButton: some View {
+        Button(action: {
+            Task { await viewModel.toggleFollow(clubId: clubId, token: authManager.accessToken) }
+        }) {
+            HStack(spacing: 8) {
+                if viewModel.isFollowLoading {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .tint(viewModel.isFollowing ? accentGreen : .white)
+                } else {
+                    Image(systemName: viewModel.isFollowing ? "heart.fill" : "heart")
+                        .font(.subheadline)
+                }
+                Text(viewModel.isFollowing ? "Takip Ediliyor" : "Takip Et")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(viewModel.isFollowing ? accentGreen : .white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                viewModel.isFollowing
+                    ? accentGreen.opacity(0.1)
+                    : accentGreen
+            )
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(accentGreen, lineWidth: viewModel.isFollowing ? 1.5 : 0)
+            )
+        }
+        .disabled(viewModel.isFollowLoading)
+        .padding(.horizontal, 20)
     }
 
     // MARK: - Header Banner
@@ -471,4 +533,5 @@ struct ClubEventCard: View {
         ClubProfileView(clubId: "some-club-id", clubName: "Zirve Dağcılık Kulübü")
             .environmentObject(AuthManager())
     }
+    .environmentObject(AuthManager())
 }

@@ -4,7 +4,7 @@ import { useAuthStore } from "@/store/auth";
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, PlusCircle, Settings } from "lucide-react";
+import { LayoutDashboard, PlusCircle } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, fetchMe } = useAuthStore();

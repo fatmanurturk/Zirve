@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
@@ -70,7 +70,7 @@ const BadgeStatus = ({ status }: { status: string }) => {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isAuthenticated, fetchMe } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [loading, setLoading] = useState(true);
   
   // Volunteer Data
@@ -94,64 +94,78 @@ export default function ProfilePage() {
     max_altitude_m: 0,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
+
+  // isInitialized ve isAuthenticated store'dan alınıyor
+  const isInitialized = useAuthStore((s) => s.isInitialized);
 
   useEffect(() => {
+    // Henüz fetchMe tamamlanmadıysa bekle
+    if (!isInitialized) return;
+
     if (!isAuthenticated) {
       router.push("/login");
       return;
     }
-    fetchMe();
-    fetchData();
-  }, [isAuthenticated, user?.role]);
 
-  const fetchData = async () => {
+    const role = user?.role;
+    if (!role) return;
+
+    let cancelled = false;
     setLoading(true);
-    try {
-      if (user?.role === "volunteer") {
-        const [statsRes, profileRes, badgesRes, appsRes] = await Promise.allSettled([
-          api.get("/api/v1/volunteers/me/stats"),
-          api.get("/api/v1/volunteers/me/profile"),
-          api.get("/api/v1/volunteers/me/badges"),
-          api.get("/api/v1/users/me/applications"),
-        ]);
-        
-        if (statsRes.status === "fulfilled") setVStats(statsRes.value.data);
-        if (profileRes.status === "fulfilled") {
-          const p = profileRes.value.data;
-          setVProfile(p);
+
+    const run = async () => {
+      try {
+        if (role === "volunteer") {
+          const [statsRes, profileRes, badgesRes, appsRes] = await Promise.allSettled([
+            api.get("/api/v1/volunteers/me/stats"),
+            api.get("/api/v1/volunteers/me/profile"),
+            api.get("/api/v1/volunteers/me/badges"),
+            api.get("/api/v1/users/me/applications"),
+          ]);
+          if (cancelled) return;
+          if (statsRes.status === "fulfilled") setVStats(statsRes.value.data);
+          if (profileRes.status === "fulfilled") {
+            const p = profileRes.value.data;
+            setVProfile(p);
+            setEditForm(prev => ({
+              ...prev,
+              bio: p.bio || "",
+              city: p.city || "",
+              experience_level: p.experience_level || "beginner",
+              max_altitude_m: p.max_altitude_m || 0,
+            }));
+          }
+          if (badgesRes.status === "fulfilled") setVBadges(badgesRes.value.data.items || []);
+          if (appsRes.status === "fulfilled") setVApplications(appsRes.value.data.items || []);
+        } else if (role === "organizer") {
+          const [eventsRes, orgRes] = await Promise.allSettled([
+            api.get("/api/v1/events/users/me/events"),
+            api.get("/api/v1/organizations/me"),
+          ]);
+          if (cancelled) return;
+          if (eventsRes.status === "fulfilled") setOEvents(eventsRes.value.data.items || []);
+          if (orgRes.status === "fulfilled") setOOrg(orgRes.value.data);
+        }
+
+        if (!cancelled && user) {
           setEditForm(prev => ({
             ...prev,
-            bio: p.bio || "",
-            city: p.city || "",
-            experience_level: p.experience_level || "beginner",
-            max_altitude_m: p.max_altitude_m || 0,
+            full_name: user.full_name || "",
+            phone: user.phone || "",
           }));
         }
-        if (badgesRes.status === "fulfilled") setVBadges(badgesRes.value.data.items || []);
-        if (appsRes.status === "fulfilled") setVApplications(appsRes.value.data.items || []);
-      } else if (user?.role === "organizer") {
-        const [eventsRes, orgRes] = await Promise.allSettled([
-          api.get("/api/v1/events/users/me/events"),
-          api.get("/api/v1/organizations/me"),
-        ]);
-        
-        if (eventsRes.status === "fulfilled") setOEvents(eventsRes.value.data.items || []);
-        if (orgRes.status === "fulfilled") setOOrg(orgRes.value.data);
+      } catch (err) {
+        console.error("Profil verileri yüklenemedi", err);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      
-      if (user) {
-        setEditForm(prev => ({
-          ...prev,
-          full_name: user.full_name || "",
-          phone: user.phone || "",
-        }));
-      }
-    } catch (err) {
-      console.error("Profil verileri yüklenemedi", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    run();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitialized, isAuthenticated, user?.role, refetchTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,10 +185,9 @@ export default function ProfilePage() {
         });
       }
 
-      await fetchMe();
-      await fetchData();
       setIsEditModalOpen(false);
-    } catch (err) {
+      setRefetchTrigger(n => n + 1);
+    } catch {
       alert("Bilgiler güncellenirken bir hata oluştu.");
     } finally {
       setIsSaving(false);
@@ -236,7 +249,7 @@ export default function ProfilePage() {
             >
               <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden flex-shrink-0">
                 {event.photos && event.photos.length > 0 ? (
-                  <img src={event.photos.find(p => p.is_cover)?.file_path || event.photos[0].file_path} className="w-full h-full object-cover" />
+                  <img src={event.photos.find(p => p.is_cover)?.file_path || event.photos[0].file_path} alt={event.title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-2xl">🏔️</div>
                 )}
@@ -394,7 +407,7 @@ export default function ProfilePage() {
         <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
           <div className="w-24 h-24 bg-gradient-to-br from-[#15803d] to-green-900 rounded-[2rem] flex items-center justify-center text-4xl text-white shadow-lg border-4 border-white">
             {user?.avatar_url ? (
-              <img src={user.avatar_url} className="w-full h-full object-cover" alt={user.full_name} />
+              <img src={user.avatar_url} className="w-full h-full object-cover" alt={user.full_name || "Profil"} />
             ) : (
               <User size={40} />
             )}
@@ -484,7 +497,7 @@ export default function ProfilePage() {
                     {vBadges.map((ub) => (
                       <div key={ub.id} className="aspect-square bg-gray-50 rounded-2xl flex flex-col items-center justify-center p-2 text-center group hover:bg-green-50 transition-colors">
                         <div className="text-2xl mb-1 group-hover:scale-110 transition-transform">
-                          {ub.badge.icon_url ? <img src={ub.badge.icon_url} className="w-8 h-8" alt={ub.badge.name} /> : "🏅"}
+                          {ub.badge.icon_url ? <img src={ub.badge.icon_url} className="w-8 h-8" alt={ub.badge.name || "Rozet"} /> : "🏅"}
                         </div>
                         <div className="text-[8px] font-black text-gray-500 uppercase leading-tight truncate w-full">{ub.badge.name}</div>
                       </div>

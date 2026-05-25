@@ -39,6 +39,7 @@ export interface Event {
   organization_logo_url?: string;
   organizer_name?: string;
   created_at: string;
+  cover_photo_url?: string;
   photos?: EventPhoto[];
 }
 
@@ -47,7 +48,7 @@ export interface EventListResponse {
   total: number;
 }
 
-export type ApplicationStatus = "pending" | "approved" | "rejected";
+export type ApplicationStatus = "pending" | "approved" | "rejected" | "completed";
 
 export interface Application {
   id: string;
@@ -76,8 +77,16 @@ export interface Organization {
   description?: string;
   logo_url?: string;
   website?: string;
+  city?: string;
+  category?: string;
+  tags?: string[];
   is_verified: boolean;
   created_at: string;
+  stats?: {
+    total_events: number;
+    total_volunteers: number;
+    impact_score: number;
+  };
 }
 
 export interface VolunteerProfile {
@@ -138,4 +147,10 @@ export interface EventPhoto {
 
 export interface EventPhotoReorderRequest {
   photo_ids: string[];
+}
+
+export interface HomepageStats {
+  active_volunteers: number;
+  upcoming_events: number;
+  cities_count: number;
 }

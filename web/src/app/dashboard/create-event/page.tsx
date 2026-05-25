@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import api from "@/lib/api";
 import { Calendar, MapPin, Tag, Users, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import EventPhotoUploader from "@/components/events/EventPhotoUploader";
 
 export default function CreateEvent() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
@@ -59,9 +58,10 @@ export default function CreateEvent() {
       const res = await api.post("/api/v1/events/", payload);
       setCreatedEventId(res.data.id);
       // router.push("/dashboard"); // Redirect removed to show photo uploader
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.response?.data?.detail || "Etkinlik oluşturulurken bir hata oluştu.");
+      const axiosError = err as { response?: { data?: { detail?: string } } };
+      setError(axiosError.response?.data?.detail || (err instanceof Error ? err.message : "Etkinlik oluşturulurken bir hata oluştu."));
     } finally {
       setLoading(false);
     }

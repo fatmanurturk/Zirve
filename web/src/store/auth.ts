@@ -7,6 +7,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isInitialized: boolean; // fetchMe en az bir kez denendi mi?
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
@@ -26,6 +27,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: typeof window !== "undefined" ? localStorage.getItem("token") : null,
   isLoading: false,
   isAuthenticated: false,
+  isInitialized: false,
 
   login: async (email, password) => {
     set({ isLoading: true });
@@ -66,9 +68,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchMe: async () => {
     try {
       const me = await api.get("/api/v1/auth/me");
-      set({ user: me.data, isAuthenticated: true });
+      set({ user: me.data, isAuthenticated: true, isInitialized: true });
     } catch {
-      set({ user: null, isAuthenticated: false });
+      set({ user: null, isAuthenticated: false, isInitialized: true });
     }
   },
 }));

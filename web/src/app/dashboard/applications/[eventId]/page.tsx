@@ -1,33 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { ArrowLeft, CheckCircle, XCircle, Clock, MapPin, Calendar, Users, Loader2 } from "lucide-react";
+import { ArrowLeft, Clock, MapPin, Calendar, Users, Loader2 } from "lucide-react";
 import Link from "next/link";
 import EventPhotoUploader from "@/components/events/EventPhotoUploader";
+import { Event, Application } from "@/types";
 
 export default function ApplicationsReview() {
   const params = useParams();
   const eventId = params.eventId as string;
   const router = useRouter();
 
-  const [event, setEvent] = useState<any>(null);
-  const [applications, setApplications] = useState<any[]>([]);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (eventId) {
-      loadData();
-    }
-  }, [eventId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [eventRes, appsRes] = await Promise.all([
-        api.get(`/api/v1/events/${eventId}`),
-        api.get(`/api/v1/events/${eventId}/applications`)
+        api.get<Event>(`/api/v1/events/${eventId}`),
+        api.get<{ items: Application[] }>(`/api/v1/events/${eventId}/applications`)
       ]);
       setEvent(eventRes.data);
       setApplications(appsRes.data.items);
@@ -37,7 +32,13 @@ export default function ApplicationsReview() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventId]);
+
+  useEffect(() => {
+    if (eventId) {
+      loadData();
+    }
+  }, [eventId, loadData]);
 
   const handleStatusUpdate = async (applicationId: string, newStatus: "approved" | "rejected" | "pending") => {
     setActionLoading(applicationId);
@@ -49,9 +50,10 @@ export default function ApplicationsReview() {
       setApplications(prev => prev.map(app =>
         app.id === applicationId ? { ...app, status: newStatus } : app
       ));
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { detail?: string } } };
       console.error(err);
-      alert(err.response?.data?.detail || "Durum güncellenemedi.");
+      alert(axiosError.response?.data?.detail || "Durum güncellenemedi.");
     } finally {
       setActionLoading(null);
     }
@@ -124,7 +126,7 @@ export default function ApplicationsReview() {
                     <Link href={`/volunteers/${app.volunteer_id}`} className="hover:opacity-80 transition">
                       <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center font-bold text-green-700 border border-green-100 overflow-hidden shadow-sm">
                         {app.volunteer_avatar_url ? (
-                          <img src={app.volunteer_avatar_url} className="w-full h-full object-cover" />
+                          <img src={app.volunteer_avatar_url} alt={app.volunteer_name || "Gönüllü"} className="w-full h-full object-cover" />
                         ) : (
                           "V"
                         )}
@@ -150,7 +152,7 @@ export default function ApplicationsReview() {
                 <div className="bg-gray-50 border border-gray-100 p-4 rounded-xl mt-4">
                   <p className="text-xs text-gray-400 font-bold mb-1 uppercase tracking-wider">Motivasyon Mektubu</p>
                   <p className="text-sm text-gray-600 italic leading-relaxed">
-                    "{app.motivation_letter || "Gönüllü herhangi bir motivasyon metni girmedi."}"
+                    &quot;{app.motivation_letter || "Gönüllü herhangi bir motivasyon metni girmedi."}&quot;
                   </p>
                 </div>
               </div>

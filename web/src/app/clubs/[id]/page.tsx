@@ -20,7 +20,8 @@ export default function ClubProfilePage() {
   });
 
   useEffect(() => {
-    if (isError && (error as any)?.response?.status === 404) {
+    const axiosError = error as { response?: { status?: number } };
+    if (isError && axiosError?.response?.status === 404) {
       router.push("/404");
     }
   }, [isError, error, router]);

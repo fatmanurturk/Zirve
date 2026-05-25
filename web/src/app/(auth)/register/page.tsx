@@ -31,9 +31,10 @@ export default function RegisterPage() {
       } else {
         router.push("/events");
       }
-    } catch (error: any) {
-      if (error.response?.data?.detail) {
-        setError(error.response.data.detail);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { detail?: string } } };
+      if (axiosError.response?.data?.detail) {
+        setError(axiosError.response.data.detail);
       } else {
         setError("Sunucuya bağlanılamadı veya bir hata oluştu. Lütfen tekrar deneyin.");
       }
