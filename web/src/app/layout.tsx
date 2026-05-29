@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 import Providers from "@/components/providers/Providers";
-import AIChat from "@/components/AIChat";
+import AIAssistantPanel from "@/components/AIAssistantPanel";
 
 export default function RootLayout({
   children,
@@ -26,7 +26,7 @@ export default function RootLayout({
           <main className="min-h-screen bg-slate-50 text-slate-900">
             {children}
           </main>
-          <AIChat />
+          <AIAssistantPanel />
         </Providers>
       </body>
     </html>

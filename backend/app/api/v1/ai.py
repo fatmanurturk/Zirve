@@ -5,24 +5,48 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import get_current_user
+from typing import Optional
+from pydantic import BaseModel
+
+from app.core.dependencies import get_current_user, get_optional_user
 from app.db.base import get_db
 from app.models.application import Application, ApplicationStatus
 from app.models.event import Event, EventCategory, EventDifficulty, EventStatus
+from app.models.organization import Organization
 from app.models.user import User
 from app.models.volunteer import VolunteerProfile
 from app.schemas.ai import AIIntentResponse, AIQueryRequest, AIRecommendResponse, EventRecommendation
 from app.services.ai_service import get_recommendations
-from app.services.chatbot_service import extract_intent, generate_recommendation_text, generate_search_response
+from app.services.chatbot_service import (
+    extract_intent,
+    generate_full_chat_response,
+    generate_recommendation_text,
+    generate_search_response,
+)
 
 router = APIRouter(tags=["ai"])
 
 DbSessionDep = Annotated[AsyncSession, Depends(get_db)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+OptionalUserDep = Annotated[Optional[User], Depends(get_optional_user)]
+
+
+# ---------- Yeni panel chat şemaları ----------
+class AIChatHistoryItem(BaseModel):
+    role: str
+    content: str
+
+class AIChatPanelRequest(BaseModel):
+    message: str
+    mode: str = "general"
+    history: list[AIChatHistoryItem] = []
+
+class AIChatPanelResponse(BaseModel):
+    reply: str
 
 _EXPERIENCE_TR = {
     "beginner": "Başlangıç",
@@ -297,3 +321,96 @@ async def ai_recommend(db: DbSessionDep, current_user: CurrentUserDep) -> AIReco
         profile_summary=user_summary,
         model_text=model_text,
     )
+
+
+# ---------- Kullanıcı bağlam oluşturucu ----------
+async def _build_user_context(user: Optional[User], db: AsyncSession) -> str:
+    if user is None:
+        return "Kullanıcı giriş yapmamış. Genel bilgi ver."
+
+    role = user.role.value if hasattr(user.role, "value") else str(user.role)
+    lines: list[str] = [f"Ad: {user.full_name}", f"Rol: {'Gönüllü' if role == 'volunteer' else 'Organizatör'}"]
+
+    if role == "volunteer":
+        # Gönüllü profili
+        profile_res = await db.execute(select(VolunteerProfile).where(VolunteerProfile.user_id == user.id))
+        profile = profile_res.scalar_one_or_none()
+        if profile:
+            lines.append(f"Deneyim: {_EXPERIENCE_TR.get(profile.experience_level.value, profile.experience_level.value)}")
+            if profile.city:
+                lines.append(f"Şehir: {profile.city}")
+            if profile.max_altitude_m:
+                lines.append(f"Max irtifa: {profile.max_altitude_m}m")
+            lines.append(f"Etki puanı: {profile.total_impact_score}")
+
+        # Son 5 başvuru
+        apps_res = await db.execute(
+            select(Application)
+            .options(selectinload(Application.event))
+            .where(Application.volunteer_id == user.id)
+            .order_by(Application.applied_at.desc())
+            .limit(5)
+        )
+        apps = apps_res.scalars().all()
+        if apps:
+            app_lines = []
+            for a in apps:
+                status_tr = {"pending": "Bekliyor", "approved": "Onaylandı", "rejected": "Reddedildi"}.get(
+                    a.status.value if hasattr(a.status, "value") else str(a.status), str(a.status)
+                )
+                title = a.event.title if a.event else "?"
+                app_lines.append(f"  - {title} ({status_tr})")
+            lines.append("Son başvurular:\n" + "\n".join(app_lines))
+
+    elif role == "organizer":
+        # Organizasyon
+        org_res = await db.execute(select(Organization).where(Organization.owner_id == user.id))
+        org = org_res.scalar_one_or_none()
+        if org:
+            lines.append(f"Organizasyon: {org.name}")
+            if org.city:
+                lines.append(f"Organizasyon şehri: {org.city}")
+
+        # Yaklaşan etkinlikler
+        now = datetime.now(timezone.utc)
+        events_res = await db.execute(
+            select(Event)
+            .where(Event.created_by == user.id, Event.start_date >= now)
+            .order_by(Event.start_date)
+            .limit(5)
+        )
+        events = events_res.scalars().all()
+        if events:
+            ev_lines = []
+            for e in events:
+                date_str = e.start_date.strftime("%d.%m.%Y")
+                ev_lines.append(f"  - {e.title} ({date_str}, {e.location_name or '?'})")
+            lines.append("Yaklaşan etkinlikler:\n" + "\n".join(ev_lines))
+
+        # Toplam gönüllü sayısı
+        vol_count_res = await db.execute(
+            select(func.count()).select_from(Application)
+            .join(Event, Application.event_id == Event.id)
+            .where(Event.created_by == user.id, Application.status == ApplicationStatus.APPROVED)
+        )
+        vol_count = vol_count_res.scalar_one() or 0
+        lines.append(f"Toplam onaylı gönüllü: {vol_count}")
+
+    return "\n".join(lines)
+
+
+@router.post("/ai/chat", response_model=AIChatPanelResponse, status_code=status.HTTP_200_OK)
+async def ai_panel_chat(
+    payload: AIChatPanelRequest,
+    db: DbSessionDep,
+    current_user: OptionalUserDep,
+) -> AIChatPanelResponse:
+    system_context = await _build_user_context(current_user, db)
+    history = [{"role": h.role, "content": h.content} for h in payload.history]
+    reply = await generate_full_chat_response(
+        user_message=payload.message,
+        mode=payload.mode,
+        history=history,
+        system_context=system_context,
+    )
+    return AIChatPanelResponse(reply=reply)

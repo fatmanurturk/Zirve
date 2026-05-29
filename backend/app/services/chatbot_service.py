@@ -272,6 +272,61 @@ async def generate_search_response(
     return _build_template_response(user_message, city, activity, difficulty, events)
 
 
+_MODE_INSTRUCTIONS: dict[str, str] = {
+    "general": "Genel Zirve platformu asistanısın. Etkinlikler, gönüllülük ve doğa sporları hakkında yardımcı ol.",
+    "events": "Etkinlik uzmanısın. Etkinlik oluşturma, yönetme, tarih/konum planlama konularında odaklan.",
+    "volunteers": "Gönüllü koordinatörüsün. Gönüllü bulma, eşleştirme, kapasite planlama konularında odaklan.",
+    "reports": "Veri analistsin. İstatistik, rapor ve analiz konularında odaklan. Tabloları markdown formatında ver.",
+}
+
+
+async def generate_full_chat_response(
+    user_message: str,
+    mode: str,
+    history: list[dict],
+    system_context: str,
+) -> str:
+    mode_instruction = _MODE_INSTRUCTIONS.get(mode, _MODE_INSTRUCTIONS["general"])
+    system_prompt = (
+        f"Sen Zirve doğa sporları platformunun AI asistanısın. {mode_instruction}\n\n"
+        "Türkçe, samimi ve bilgilendirici yanıtlar ver. "
+        "Markdown formatı kullanabilirsin (başlık, liste, kalın). "
+        "Emoji kullanabilirsin ama aşırıya kaçma.\n\n"
+        f"Kullanıcı bağlamı:\n{system_context}"
+        if system_context else
+        f"Sen Zirve doğa sporları platformunun AI asistanısın. {mode_instruction}\n"
+        "Türkçe, samimi ve bilgilendirici yanıtlar ver. Markdown formatı kullanabilirsin."
+    )
+
+    if not settings.GROQ_API_KEY:
+        return f"Şu an AI servisi aktif değil. Mesajınız: «{user_message}»"
+
+    messages: list[dict] = [{"role": "system", "content": system_prompt}]
+    for h in history[-10:]:  # son 10 mesaj ile sınırla
+        messages.append({"role": h["role"], "content": h["content"]})
+    messages.append({"role": "user", "content": user_message})
+
+    payload = {
+        "model": settings.GROQ_MODEL,
+        "messages": messages,
+        "temperature": 0.75,
+        "max_tokens": 700,
+    }
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {settings.GROQ_API_KEY}"}
+
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.post(settings.GROQ_API_URL, json=payload, headers=headers, timeout=25.0)
+            resp.raise_for_status()
+            text = resp.json()["choices"][0]["message"]["content"].strip()
+            if text:
+                return text
+        except Exception:
+            pass
+
+    return "Bir sorun oluştu, lütfen tekrar deneyin."
+
+
 async def generate_recommendation_text(user_summary: str, events: list[dict]) -> str:
     if not events:
         return "Profilinize uygun açık etkinlik bulunamadı."

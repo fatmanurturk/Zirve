@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth";
-import { useAIChatStore } from "@/store/aiChat";
+import { useAIAssistantStore } from "@/store/aiAssistant";
 import { Mountain, Sparkles } from "lucide-react";
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { toggle } = useAIChatStore();
+  const { toggle } = useAIAssistantStore();
 
   return (
     <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 sticky top-0 z-50 shadow-sm">
