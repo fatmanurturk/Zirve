@@ -1,14 +1,17 @@
 from __future__ import annotations
+
 import enum
+from decimal import Decimal
 from datetime import datetime
 from uuid import UUID
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, JSON, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, JSON, Numeric, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from .base_model import BaseModel
 from typing import Optional, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .event_photo import EventPhoto
+
 
 class EventCategory(enum.Enum):
     HIKING = "hiking"
@@ -17,11 +20,13 @@ class EventCategory(enum.Enum):
     RESCUE = "rescue"
     OTHER = "other"
 
+
 class EventDifficulty(enum.Enum):
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
     EXPERT = "expert"
+
 
 class EventStatus(enum.Enum):
     DRAFT = "draft"
@@ -30,8 +35,10 @@ class EventStatus(enum.Enum):
     CLOSED = "closed"
     COMPLETED = "completed"
 
+
 class Event(BaseModel):
     __tablename__ = "events"
+
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -48,10 +55,27 @@ class Event(BaseModel):
     impact_score_reward: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     required_equipment: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     status: Mapped[EventStatus] = mapped_column(Enum(EventStatus, name="event_status"), nullable=False)
+    waypoints: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=None)
+    route_geojson: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=None)
+
+    # Ücret alanları
+    fee: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False, default=Decimal("0.00"), server_default="0.00"
+    )
+    is_free: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+
+    # fee set edildiğinde is_free otomatik güncellenir — servis/router müdahalesi gerekmez
+    @validates("fee")
+    def _sync_is_free(self, key: str, value: Decimal) -> Decimal:
+        value = Decimal(str(value))
+        self.is_free = value == Decimal("0.00")
+        return value
+
+    # İlişkiler
     organization: Mapped["Organization"] = relationship(back_populates="events")
     created_by_user: Mapped["User"] = relationship(back_populates="events_created")
     applications: Mapped[List["Application"]] = relationship(back_populates="event", cascade="all, delete-orphan")
     user_badges: Mapped[List["UserBadge"]] = relationship(back_populates="earned_from_event")
-    waypoints: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=None)
-    route_geojson: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=None)
     photos: Mapped[List["EventPhoto"]] = relationship(back_populates="event", cascade="all, delete-orphan", order_by="EventPhoto.display_order")

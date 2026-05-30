@@ -1,4 +1,5 @@
 # filepath: backend/app/api/v1/events.py
+from decimal import Decimal
 from typing import Annotated, List, Optional
 from uuid import UUID
 
@@ -10,7 +11,7 @@ from app.db.base import get_db
 from app.models.event import Event, EventCategory, EventDifficulty, EventStatus
 from app.models.organization import Organization
 from app.models.user import User, UserRole
-from app.schemas.event import EventCreate, EventListResponse, EventResponse, EventUpdate
+from app.schemas.event import EventCreate, EventListResponse, EventResponse, EventUpdate, EventUpdateFee
 from app.services.event_service import EventService
 
 router = APIRouter(tags=["events"])
@@ -52,6 +53,8 @@ def _event_to_response(
         "cover_photo_url": cover_photo_url,
         "waypoints": event.waypoints,
         "route_geojson": event.route_geojson,
+        "fee": event.fee,
+        "is_free": event.is_free,
     })
 
 
@@ -61,10 +64,20 @@ async def list_events(
     category: Optional[EventCategory] = Query(default=None),
     difficulty: Optional[EventDifficulty] = Query(default=None),
     status: Optional[EventStatus] = Query(default=None),
+    is_free: Optional[bool] = Query(default=None, description="True: sadece ücretsiz etkinlikler"),
+    max_fee: Optional[Decimal] = Query(default=None, ge=0, description="Maksimum ücret (TL)"),
     skip: int = 0,
     limit: int = 20,
 ) -> EventListResponse:
-    events, total = await EventService(db).list(category, difficulty, status, skip, limit)
+    events, total = await EventService(db).list(
+        category=category,
+        difficulty=difficulty,
+        status=status,
+        is_free=is_free,
+        max_fee=max_fee,
+        skip=skip,
+        limit=limit,
+    )
     items = [_event_to_response(e, org=e.organization, creator=e.created_by_user) for e in events]
     return EventListResponse(items=items, total=total)
 
@@ -119,6 +132,29 @@ async def update_event(
     if event.created_by != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the creator can update this event")
     event = await svc.update(event, event_in)
+    return _event_to_response(event, org=event.organization, creator=event.created_by_user)
+
+
+@router.patch("/{event_id}/fee", response_model=EventResponse)
+async def update_event_fee(
+    event_id: UUID,
+    dto: EventUpdateFee,
+    db: DbSessionDep,
+    current_user: CurrentUserDep,
+) -> EventResponse:
+    if current_user.role != UserRole.ORGANIZER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sadece organizatörler etkinlik ücretini güncelleyebilir.",
+        )
+    try:
+        svc = EventService(db)
+        event = await svc.update_fee(event_id, dto, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
     return _event_to_response(event, org=event.organization, creator=event.created_by_user)
 
 

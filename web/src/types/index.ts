@@ -51,6 +51,8 @@ export interface Event {
   waypoints?: Waypoint[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   route_geojson?: any;
+  fee?: number;
+  is_free?: boolean;
 }
 
 export interface EventListResponse {

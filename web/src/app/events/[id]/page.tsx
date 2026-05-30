@@ -45,6 +45,12 @@ export default function EventDetailPage() {
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState("");
   const [motivation, setMotivation] = useState("");
+  const [paymentStep, setPaymentStep] = useState<"motivation" | "payment">("motivation");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+  const [expiryMonth, setExpiryMonth] = useState("");
+  const [expiryYear, setExpiryYear] = useState("");
+  const [cvv, setCvv] = useState("");
 
   // Organizer only states
   const [applicants, setApplicants] = useState<Application[]>([]);
@@ -118,17 +124,22 @@ export default function EventDetailPage() {
     }
   }, [isCreator, fetchApplicants]);
 
+  const isPaidEvent = event && !event.is_free && event.fee && Number(event.fee) > 0;
+
   const handleApply = async () => {
-    if (!isAuthenticated) {
-      router.push("/login");
-      return;
-    }
+    if (!isAuthenticated) { router.push("/login"); return; }
     setApplying(true);
     setError("");
     try {
-      await api.post(`/api/v1/events/${id}/apply`, {
-        motivation_letter: motivation || null,
-      });
+      const payload: Record<string, unknown> = { motivation_letter: motivation || null };
+      if (isPaidEvent) {
+        payload.card_number = cardNumber.replace(/\s/g, "");
+        payload.card_holder_name = cardHolder;
+        payload.expiry_month = expiryMonth;
+        payload.expiry_year = expiryYear;
+        payload.cvv = cvv;
+      }
+      await api.post(`/api/v1/events/${id}/apply`, payload);
       setApplied(true);
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { detail?: string } } };
@@ -290,6 +301,15 @@ export default function EventDetailPage() {
             <div className="text-xs text-gray-400 mb-1 font-medium">Max Gönüllü</div>
             <div className="text-sm font-bold text-gray-700">👥 {event.max_volunteers}</div>
           </div>
+          <div className="bg-gray-50 rounded-xl p-4 transition hover:bg-gray-100">
+            <div className="text-xs text-gray-400 mb-1 font-medium">Katılım Ücreti</div>
+            <div className="text-sm font-bold text-gray-700">
+              {event.is_free
+                ? <span className="text-emerald-600">✓ Ücretsiz</span>
+                : <span className="text-amber-600">💰 {Number(event.fee).toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}</span>
+              }
+            </div>
+          </div>
         </div>
 
         {event.status === "open" && new Date(event.end_date) < new Date() && user?.role === "volunteer" && !isCreator && (
@@ -307,31 +327,160 @@ export default function EventDetailPage() {
         {event.status === "open" && new Date(event.end_date) >= new Date() && user?.role === "volunteer" && !isCreator && (
           <div className="border-t border-gray-100 pt-8">
             {applied ? (
-              <div className="bg-green-50 text-green-700 px-6 py-4 rounded-xl text-sm font-medium border border-green-100">
-                ✅ Başvurunuz alındı! Onay bekleyiniz.
+              <div className="flex flex-col items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-6 py-8 text-center">
+                <span className="text-4xl">🎉</span>
+                <p className="text-green-700 font-bold text-lg">Başvurunuz başarıyla alındı!</p>
+                <p className="text-green-600 text-sm">Organizatörün onayı bekleniyor. Başvuru durumunuzu profilinizden takip edebilirsiniz.</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Başvur</h3>
+              <div className="space-y-5">
+                {/* Adım göstergesi — sadece ücretli etkinlikte */}
+                {isPaidEvent && (
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`flex items-center gap-1.5 text-sm font-bold ${paymentStep === "motivation" ? "text-green-700" : "text-slate-400"}`}>
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${paymentStep === "motivation" ? "bg-green-700 text-white" : "bg-slate-200 text-slate-500"}`}>1</span>
+                      Başvuru
+                    </div>
+                    <div className="flex-1 h-px bg-slate-200" />
+                    <div className={`flex items-center gap-1.5 text-sm font-bold ${paymentStep === "payment" ? "text-amber-600" : "text-slate-400"}`}>
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${paymentStep === "payment" ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-500"}`}>2</span>
+                      Ödeme
+                    </div>
+                  </div>
+                )}
+
                 {error && (
-                  <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg">
+                  <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg border border-red-100">
                     {error}
                   </div>
                 )}
-                <textarea
-                  value={motivation}
-                  onChange={(e) => setMotivation(e.target.value)}
-                  placeholder="Motivasyon mektubunuz (opsiyonel)"
-                  rows={4}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <button
-                  onClick={handleApply}
-                  disabled={applying}
-                  className="bg-green-700 text-white px-8 py-3 rounded-xl text-sm font-bold hover:bg-green-800 transition disabled:opacity-50 shadow-sm"
-                >
-                  {applying ? "Başvuruluyor..." : "Etkinliğe Başvur"}
-                </button>
+
+                {/* ADIM 1: Motivasyon */}
+                {paymentStep === "motivation" && (
+                  <>
+                    <h3 className="text-lg font-semibold text-gray-900">Başvur</h3>
+                    <textarea
+                      value={motivation}
+                      onChange={(e) => setMotivation(e.target.value)}
+                      placeholder="Motivasyon mektubunuz (opsiyonel)"
+                      rows={4}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    {isPaidEvent ? (
+                      <button
+                        onClick={() => { setError(""); setPaymentStep("payment"); }}
+                        className="w-full bg-amber-500 text-white px-8 py-3 rounded-xl text-sm font-bold hover:bg-amber-600 transition shadow-sm flex items-center justify-center gap-2"
+                      >
+                        💳 Devam Et — Ödeme ({Number(event.fee).toLocaleString("tr-TR", { style: "currency", currency: "TRY" })})
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleApply}
+                        disabled={applying}
+                        className="bg-green-700 text-white px-8 py-3 rounded-xl text-sm font-bold hover:bg-green-800 transition disabled:opacity-50 shadow-sm"
+                      >
+                        {applying ? "Başvuruluyor..." : "Etkinliğe Başvur"}
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* ADIM 2: Kart Bilgileri */}
+                {paymentStep === "payment" && (
+                  <>
+                    <div className="flex items-center gap-2 mb-1">
+                      <button onClick={() => { setError(""); setPaymentStep("motivation"); }} className="text-slate-400 hover:text-slate-600 text-sm">← Geri</button>
+                      <h3 className="text-lg font-semibold text-gray-900">Ödeme Bilgileri</h3>
+                    </div>
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 font-medium">
+                      💰 Ödenecek tutar: <span className="font-black">{Number(event.fee).toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Kart Numarası */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1.5">Kart Numarası</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={19}
+                          value={cardNumber}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
+                            setCardNumber(raw.replace(/(.{4})/g, "$1 ").trim());
+                          }}
+                          placeholder="0000 0000 0000 0000"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        />
+                      </div>
+
+                      {/* Kart Sahibi */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1.5">Kart Üzerindeki İsim</label>
+                        <input
+                          type="text"
+                          value={cardHolder}
+                          onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                          placeholder="AD SOYAD"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        />
+                      </div>
+
+                      {/* Son Kullanma + CVV */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1.5">Ay</label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={2}
+                            value={expiryMonth}
+                            onChange={(e) => setExpiryMonth(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                            placeholder="MM"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-3 text-sm text-center font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1.5">Yıl</label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={4}
+                            value={expiryYear}
+                            onChange={(e) => setExpiryYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                            placeholder="YYYY"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-3 text-sm text-center font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1.5">CVV</label>
+                          <input
+                            type="password"
+                            inputMode="numeric"
+                            maxLength={4}
+                            value={cvv}
+                            onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                            placeholder="•••"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-3 text-sm text-center font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleApply}
+                      disabled={applying || !cardNumber || !cardHolder || !expiryMonth || !expiryYear || !cvv}
+                      className="w-full bg-amber-500 text-white px-8 py-3.5 rounded-xl text-sm font-bold hover:bg-amber-600 transition disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
+                    >
+                      {applying ? (
+                        <><span className="animate-spin">⏳</span> Ödeme işleniyor...</>
+                      ) : (
+                        <>🔒 Ödemeyi Tamamla ve Başvuruyu Gönder</>
+                      )}
+                    </button>
+                    <p className="text-center text-xs text-slate-400">Kart bilgileriniz şifreli olarak iletilir ve saklanmaz.</p>
+                  </>
+                )}
               </div>
             )}
           </div>

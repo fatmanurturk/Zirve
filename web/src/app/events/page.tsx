@@ -321,9 +321,15 @@ export default function EventsPage() {
                       <p className="text-slate-500 text-sm mb-6 flex items-center gap-2 font-medium"><MapPin className="w-4 h-4 text-emerald-500 flex-shrink-0" /> <span className="truncate">{event.location_name || "Konum Gizli"}</span></p>
                     </div>
                     <div className="flex items-center justify-between mt-auto pt-5 border-t border-slate-100">
-                      <p className="text-sm font-bold text-slate-400">
-                        {event.max_volunteers ? <><span className="text-emerald-600 text-base">{event.max_volunteers}</span> yer kaldı</> : "Sınırsız Katılım"}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-bold text-slate-400">
+                          {event.max_volunteers ? <><span className="text-emerald-600 text-base">{event.max_volunteers}</span> yer kaldı</> : "Sınırsız Katılım"}
+                        </p>
+                        {event.is_free
+                          ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Ücretsiz</span>
+                          : <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{Number(event.fee).toLocaleString("tr-TR", { style: "currency", currency: "TRY" })}</span>
+                        }
+                      </div>
                       <button className="px-6 py-2.5 rounded-full bg-slate-50 group-hover:bg-emerald-600 text-slate-700 group-hover:text-white text-sm font-bold border border-slate-200 group-hover:border-emerald-600 transition-all shadow-sm group-hover:shadow-md">
                         Göz At
                       </button>

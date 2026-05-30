@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
@@ -10,7 +11,7 @@ from sqlalchemy.orm import joinedload
 from app.models.event import Event, EventCategory, EventDifficulty, EventStatus
 from app.models.organization import Organization
 from app.models.user import User
-from app.schemas.event import EventCreate, EventUpdate
+from app.schemas.event import EventCreate, EventUpdate, EventUpdateFee
 
 
 class EventService:
@@ -52,6 +53,8 @@ class EventService:
             waypoints=event_in.waypoints,
             route_geojson=event_in.route_geojson,
             status=EventStatus.OPEN,
+            # fee setter'ı is_free'yi otomatik güncelliyor (@validates)
+            fee=event_in.fee,
         )
         self.db.add(event)
         await self.db.commit()
@@ -74,6 +77,8 @@ class EventService:
         category: Optional[EventCategory] = None,
         difficulty: Optional[EventDifficulty] = None,
         status: Optional[EventStatus] = None,
+        is_free: Optional[bool] = None,
+        max_fee: Optional[Decimal] = None,
         skip: int = 0,
         limit: int = 20,
     ) -> tuple[list[Event], int]:
@@ -93,6 +98,12 @@ class EventService:
         if status is not None:
             query = query.where(Event.status == status)
             count_query = count_query.where(Event.status == status)
+        if is_free is not None:
+            query = query.where(Event.is_free == is_free)
+            count_query = count_query.where(Event.is_free == is_free)
+        if max_fee is not None:
+            query = query.where(Event.fee <= max_fee)
+            count_query = count_query.where(Event.fee <= max_fee)
 
         total = await self.db.scalar(count_query) or 0
         events = (await self.db.execute(query.offset(skip).limit(limit))).scalars().unique().all()
@@ -122,6 +133,21 @@ class EventService:
             event.required_equipment = update_data.pop("requirements")
         for field, value in update_data.items():
             setattr(event, field, value)
+        await self.db.commit()
+        await self.db.refresh(event)
+        return event
+
+    async def update_fee(
+        self, event_id: UUID, dto: EventUpdateFee, current_user_id: UUID
+    ) -> Event:
+        event = await self.get_by_id(event_id)
+        if event is None:
+            raise ValueError("Etkinlik bulunamadı.")
+        if event.created_by != current_user_id:
+            raise PermissionError("Sadece etkinliğin sahibi ücreti güncelleyebilir.")
+
+        # @validates("fee") is_free'yi otomatik günceller
+        event.fee = dto.fee
         await self.db.commit()
         await self.db.refresh(event)
         return event

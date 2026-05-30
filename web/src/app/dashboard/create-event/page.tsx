@@ -29,6 +29,7 @@ export default function CreateEvent() {
     end_date: "",
     max_volunteers: "",
     requirements_text: "",
+    fee: "0",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -63,6 +64,7 @@ export default function CreateEvent() {
         end_date: new Date(formData.end_date).toISOString(),
         max_volunteers: formData.max_volunteers ? parseInt(formData.max_volunteers) : null,
         requirements: Object.keys(requirements).length > 0 ? requirements : null,
+        fee: formData.fee ? parseFloat(formData.fee) : 0,
         waypoints: routeWaypoints.length > 0 ? routeWaypoints : null,
         route_geojson: routeGeoJSON ?? null,
       };
@@ -227,8 +229,24 @@ export default function CreateEvent() {
               </div>
 
               <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5">
+                  💰 Katılım Ücreti (TL)
+                </label>
+                <input
+                  type="number"
+                  name="fee"
+                  value={formData.fee}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-inner"
+                  placeholder="0 — ücretsiz etkinlik için 0 girin"
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2.5 flex items-center gap-1.5"><Users className="w-4 h-4 text-orange-500" /> Kontenjan Sınırı</label>
-                <input 
+                <input
                   type="number"
                   name="max_volunteers"
                   value={formData.max_volunteers}
