@@ -1,17 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 
 import api from "@/lib/api";
-import { Calendar, MapPin, Tag, Users, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
+import { Calendar, MapPin, Tag, Users, AlertCircle, Loader2, CheckCircle2, Route } from "lucide-react";
 import Link from "next/link";
 import EventPhotoUploader from "@/components/events/EventPhotoUploader";
+import { Waypoint } from "@/types";
+
+const RouteEditor = dynamic(() => import("@/components/map/RouteEditor"), { ssr: false });
 
 export default function CreateEvent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
-  
+  const [routeWaypoints, setRouteWaypoints] = useState<Waypoint[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -41,17 +48,23 @@ export default function CreateEvent() {
         return acc;
       }, {} as Record<string, string>);
 
+      // Use first waypoint coords as event lat/lng if available
+      const firstWp = routeWaypoints.find((w) => w.lat !== 0 || w.lng !== 0);
+
       const payload = {
         title: formData.title,
         description: formData.description,
         category: formData.category,
         difficulty: formData.difficulty,
         location_name: formData.location_name,
-        // Convert datetime-local to ISO strings
+        latitude: firstWp ? firstWp.lat : null,
+        longitude: firstWp ? firstWp.lng : null,
         start_date: new Date(formData.start_date).toISOString(),
         end_date: new Date(formData.end_date).toISOString(),
         max_volunteers: formData.max_volunteers ? parseInt(formData.max_volunteers) : null,
         requirements: Object.keys(requirements).length > 0 ? requirements : null,
+        waypoints: routeWaypoints.length > 0 ? routeWaypoints : null,
+        route_geojson: routeGeoJSON ?? null,
       };
 
 
@@ -235,6 +248,24 @@ export default function CreateEvent() {
                   placeholder="Virgülle ayırarak yazın (Çadır, Uyku Tulumu...)"
                 />
               </div>
+            </div>
+
+            {/* Route Editor */}
+            <div className="pt-8 border-t border-gray-100">
+              <div className="flex items-center gap-2 mb-4">
+                <Route className="w-5 h-5 text-emerald-600" />
+                <h2 className="text-lg font-bold text-gray-900">Görev Rotası</h2>
+                <span className="text-xs text-slate-400 font-normal">(Opsiyonel)</span>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                Etkinlik güzergahını haritada çizin. Onaylanan gönüllüler bu rotayı görebilir.
+              </p>
+              <RouteEditor
+                onChange={(wps, geo) => {
+                  setRouteWaypoints(wps);
+                  setRouteGeoJSON(geo);
+                }}
+              />
             </div>
 
             <div className="pt-8 border-t border-gray-100 flex justify-end">

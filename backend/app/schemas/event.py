@@ -1,6 +1,6 @@
 # filepath: backend/app/schemas/event.py
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -20,6 +20,8 @@ class EventCreate(BaseModel):
     end_date: datetime
     max_volunteers: Optional[int] = None
     requirements: Optional[dict] = None
+    waypoints: Optional[List[dict]] = None
+    route_geojson: Optional[Any] = None
 
 
 class EventUpdate(BaseModel):
@@ -35,6 +37,8 @@ class EventUpdate(BaseModel):
     end_date: Optional[datetime] = None
     max_volunteers: Optional[int] = None
     requirements: Optional[dict] = None
+    waypoints: Optional[List[dict]] = None
+    route_geojson: Optional[Any] = None
 
 
 class EventResponse(BaseModel):
@@ -61,6 +65,8 @@ class EventResponse(BaseModel):
     organization_logo_url: Optional[str] = None
     organizer_name: Optional[str] = None
     cover_photo_url: Optional[str] = None
+    waypoints: Optional[List[dict]] = None
+    route_geojson: Optional[Any] = None
 
 
 class EventListResponse(BaseModel):

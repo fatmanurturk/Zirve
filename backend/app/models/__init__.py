@@ -7,6 +7,7 @@ from .event import Event, EventCategory, EventDifficulty, EventStatus
 from .application import Application, ApplicationStatus
 from .badge import Badge, UserBadge, BadgeCategory
 from .event_photo import EventPhoto
+from .volunteer_location import VolunteerLocation
 
 __all__ = [
     "Base", "BaseModel",
@@ -17,4 +18,5 @@ __all__ = [
     "Application", "ApplicationStatus",
     "Badge", "UserBadge", "BadgeCategory",
     "EventPhoto",
+    "VolunteerLocation",
 ]

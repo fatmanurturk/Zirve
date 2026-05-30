@@ -12,8 +12,8 @@ class NetworkManager: ObservableObject {
     func fetchOpenEvents() async {
         isLoading = true
         errorMessage = nil
-        
-        guard let url = URL(string: "\(baseURL)/events/?status=open&limit=10") else {
+
+        guard let url = URL(string: "\(baseURL)/events/?limit=50") else {
             errorMessage = "Geçersiz URL"
             isLoading = false
             return
@@ -98,7 +98,18 @@ struct ExploreView: View {
 
 struct EventRowView: View {
     let event: Event
-    
+
+    private var timeBadge: (label: String, color: Color) {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let now = Date()
+        let start = formatter.date(from: event.start_date) ?? now
+        let end = formatter.date(from: event.end_date) ?? now
+        if end < now   { return ("Geçmiş", .gray) }
+        if start > now { return ("Gelecek", .blue) }
+        return ("Devam Ediyor", .green)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let coverPhoto = event.cover_photo_url,
@@ -122,7 +133,7 @@ struct EventRowView: View {
                 .frame(height: 140)
                 .clipped()
             }
-            
+
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text(event.category.uppercased())
@@ -133,9 +144,19 @@ struct EventRowView: View {
                         .background(Color.green.opacity(0.15))
                         .foregroundColor(.green)
                         .cornerRadius(8)
-                    
+
+                    let badge = timeBadge
+                    Text(badge.label.uppercased())
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(badge.color.opacity(0.12))
+                        .foregroundColor(badge.color)
+                        .cornerRadius(8)
+
                     Spacer()
-                    
+
                     Text(event.difficulty.uppercased())
                         .font(.caption)
                         .fontWeight(.bold)
@@ -172,6 +193,7 @@ struct EventRowView: View {
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .opacity(timeBadge.label == "Geçmiş" ? 0.65 : 1.0)
     }
     
     private func formatDate(_ isoString: String) -> String {

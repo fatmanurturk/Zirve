@@ -24,3 +24,4 @@ class User(BaseModel):
     events_created: Mapped[List["Event"]] = relationship(back_populates="created_by_user")
     applications: Mapped[List["Application"]] = relationship(back_populates="volunteer")
     user_badges: Mapped[List["UserBadge"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    location: Mapped[Optional["VolunteerLocation"]] = relationship(back_populates="volunteer", uselist=False, cascade="all, delete-orphan")

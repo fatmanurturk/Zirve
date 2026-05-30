@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { 
-  Search, Mountain, TreePine, Users, Flame, 
-  MapPin, Calendar, Filter, Loader2, ChevronRight 
+import dynamic from "next/dynamic";
+import {
+  Search, Mountain, TreePine, Users, Flame,
+  MapPin, Calendar, Filter, Loader2, ChevronRight, Map, List
 } from "lucide-react";
 import api from "@/lib/api";
 import { Event } from "@/types";
+
+const EventMap = dynamic(() => import("@/components/map/EventMap"), { ssr: false });
 
 const categoryIcons: Record<string, React.ReactNode> = {
   hiking: <Mountain className="w-16 h-16 text-emerald-600 opacity-10 absolute -bottom-4 -right-4" />,
@@ -49,11 +52,21 @@ const categoryBgColors: Record<string, string> = {
   other: "bg-purple-50",
 };
 
+function getEventTimeBadge(event: Event): { label: string; className: string } {
+  const now = new Date();
+  const start = new Date(event.start_date);
+  const end = new Date(event.end_date);
+  if (end < now) return { label: "Geçmiş", className: "bg-slate-100 text-slate-500 border-slate-200" };
+  if (start > now) return { label: "Gelecek", className: "bg-blue-50 text-blue-700 border-blue-200" };
+  return { label: "Devam Ediyor", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+}
+
 export default function EventsPage() {
   const router = useRouter();
   
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   // Filters state
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,7 +76,7 @@ export default function EventsPage() {
   const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get("/api/v1/events/?status=open&limit=100");
+      const res = await api.get("/api/v1/events/?limit=100");
       if (res.data && res.data.items) {
         setEvents(res.data.items);
       }
@@ -211,17 +224,50 @@ export default function EventsPage() {
         <div className="flex-1">
           <div className="mb-8 flex items-center justify-between">
             <h2 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-              <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-lg">{filteredEvents.length}</span> 
+              <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-lg">{filteredEvents.length}</span>
               <span className="text-slate-400 font-medium text-xl">etkinlik bulundu</span>
             </h2>
+            {/* View toggle */}
+            <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+              <button
+                onClick={() => setViewMode("list")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  viewMode === "list"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <List className="w-4 h-4" /> Liste
+              </button>
+              <button
+                onClick={() => setViewMode("map")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  viewMode === "map"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                <Map className="w-4 h-4" /> Harita
+              </button>
+            </div>
           </div>
 
-          {loading ? (
+          {/* Map view */}
+          {viewMode === "map" && !loading && (
+            <div className="h-[560px] rounded-3xl overflow-hidden border border-slate-200 shadow-sm mb-8">
+              <EventMap
+                events={filteredEvents}
+                onGetDirections={(event) => router.push(`/events/${event.id}`)}
+              />
+            </div>
+          )}
+
+          {viewMode === "list" && loading ? (
              <div className="flex flex-col items-center justify-center py-24 text-slate-500 bg-white rounded-3xl border border-slate-200 shadow-sm">
                <Loader2 className="w-12 h-12 animate-spin text-emerald-500 mb-6" />
                <p className="font-bold animate-pulse text-lg">Zirve Rotaları Taranıyor...</p>
              </div>
-          ) : filteredEvents.length === 0 ? (
+          ) : viewMode === "list" && filteredEvents.length === 0 ? (
              <div className="flex flex-col items-center justify-center py-28 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200 shadow-sm">
                <div className="w-24 h-24 rounded-full bg-slate-50 flex items-center justify-center mb-6 shadow-inner border border-slate-100">
                  <Search className="w-10 h-10 text-slate-300" />
@@ -231,13 +277,13 @@ export default function EventsPage() {
                  Aradığınız kriterlere uygun açık bir etkinlik bulamadık. Daha geniş bir arama yapmayı deneyin.
                </p>
              </div>
-          ) : (
+          ) : viewMode === "list" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
               {filteredEvents.map((event) => (
-                <div 
+                <div
                   key={event.id}
                   onClick={() => router.push(`/events/${event.id}`)}
-                  className="rounded-3xl overflow-hidden bg-white border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-emerald-900/5 transition-all flex flex-col cursor-pointer group hover:-translate-y-1"
+                  className={`rounded-3xl overflow-hidden bg-white border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-emerald-900/5 transition-all flex flex-col cursor-pointer group hover:-translate-y-1 ${new Date(event.end_date) < new Date() ? "opacity-70" : ""}`}
                 >
                   <div className={`h-48 ${categoryBgColors[event.category] || "bg-slate-50"} flex items-center justify-center relative overflow-hidden transition-colors border-b border-slate-100`}>
                      {event.cover_photo_url ? (
@@ -257,13 +303,18 @@ export default function EventsPage() {
                   </div>
                   <div className="p-6 flex-1 flex flex-col">
                     <div className="mb-auto">
-                      <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center gap-2 mb-4 flex-wrap">
                         <span className="inline-block px-3 py-1.5 rounded-full bg-slate-100 text-[11px] font-black text-slate-600 border border-slate-200 uppercase tracking-wide">
                           {categoryLabels[event.category] || event.category}
                         </span>
                         <span className="inline-block px-3 py-1.5 rounded-full bg-emerald-50 text-[11px] font-black text-emerald-700 border border-emerald-200 uppercase tracking-wide">
                           {difficultyLabels[event.difficulty] || event.difficulty}
                         </span>
+                        {(() => { const b = getEventTimeBadge(event); return (
+                          <span className={`inline-block px-3 py-1.5 rounded-full text-[11px] font-black border uppercase tracking-wide ${b.className}`}>
+                            {b.label}
+                          </span>
+                        ); })()}
                       </div>
                       <h3 className="font-extrabold text-xl text-slate-900 mb-3 line-clamp-2 leading-tight group-hover:text-emerald-700 transition-colors">{event.title}</h3>
                       <p className="text-slate-500 text-sm flex items-center gap-2 mb-2 font-medium"><Calendar className="w-4 h-4 text-emerald-500 flex-shrink-0" /> <span className="truncate">{new Date(event.start_date).toLocaleDateString("tr-TR")}</span></p>
@@ -289,7 +340,7 @@ export default function EventsPage() {
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

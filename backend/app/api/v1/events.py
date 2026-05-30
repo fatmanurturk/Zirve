@@ -63,6 +63,8 @@ def _event_to_response(event: Event, org: Organization | None = None, creator: U
         "organization_logo_url": org.logo_url if org else None,
         "organizer_name": creator.full_name if creator else None,
         "cover_photo_url": cover_photo_url,
+        "waypoints": event.waypoints,
+        "route_geojson": event.route_geojson,
     }
     return EventResponse.model_validate(data)
 
@@ -185,6 +187,8 @@ async def create_event(
         end_date=event_in.end_date,
         max_volunteers=event_in.max_volunteers,
         required_equipment=event_in.requirements,
+        waypoints=event_in.waypoints,
+        route_geojson=event_in.route_geojson,
         status=EventStatus.OPEN,
     )
 

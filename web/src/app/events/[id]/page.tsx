@@ -1,14 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type L from "leaflet";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import api from "@/lib/api";
-import { Event, Application, EventPhoto } from "@/types";
+import { Event, Application, EventPhoto, Waypoint } from "@/types";
 import { useAuthStore } from "@/store/auth";
-import { Building2, User, ChevronRight, CheckCircle2, XCircle } from "lucide-react";
+import { Building2, User, ChevronRight, CheckCircle2, XCircle, Navigation, Route, Pencil } from "lucide-react";
 import EventPhotoGallery from "@/components/events/EventPhotoGallery";
 import EventPhotoUploader from "@/components/events/EventPhotoUploader";
+
+const RouteMap = dynamic(() => import("@/components/map/RouteMap"), { ssr: false });
+const VolunteerTrackingMap = dynamic(() => import("@/components/map/VolunteerTrackingMap"), { ssr: false });
+const VolunteerLocationShare = dynamic(() => import("@/components/map/VolunteerLocationShare"), { ssr: false });
+const RouteViewer = dynamic(() => import("@/components/map/RouteViewer"), { ssr: false });
+const RouteEditor = dynamic(() => import("@/components/map/RouteEditor"), { ssr: false });
 
 const categoryLabels: Record<string, string> = {
   hiking: "Yürüyüş",
@@ -43,6 +51,16 @@ export default function EventDetailPage() {
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const [photos, setPhotos] = useState<EventPhoto[]>([]);
 
+  // Route state
+  const [editingRoute, setEditingRoute] = useState(false);
+  const [routeWaypoints, setRouteWaypoints] = useState<Waypoint[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [routeGeoJSON, setRouteGeoJSON] = useState<any>(null);
+  const [savingRoute, setSavingRoute] = useState(false);
+  // Volunteer: their application status for this event
+  const [myAppStatus, setMyAppStatus] = useState<string | null>(null);
+  const routeMapRef = useRef<L.Map | null>(null);
+
   const isCreator = !!user?.id && !!event?.created_by && user.id === event.created_by;
 
   useEffect(() => {
@@ -50,6 +68,11 @@ export default function EventDetailPage() {
       try {
         const res = await api.get<Event>(`/api/v1/events/${id}`);
         setEvent(res.data);
+        // Initialise route state from saved event data
+        if (res.data.waypoints?.length) {
+          setRouteWaypoints(res.data.waypoints);
+          setRouteGeoJSON(res.data.route_geojson ?? null);
+        }
         try {
           const photosRes = await api.get(`/api/v1/event-photos/${res.data.id}`);
           setPhotos(photosRes.data);
@@ -63,6 +86,15 @@ export default function EventDetailPage() {
       }
     };
     fetchEvent();
+
+    // Check volunteer's application status for this event
+    if (isAuthenticated && user?.role === "volunteer") {
+      api.get("/api/v1/users/me/applications?limit=200").then((res) => {
+        const apps: Application[] = res.data?.items ?? [];
+        const mine = apps.find((a) => a.event_id === id);
+        setMyAppStatus(mine?.status ?? null);
+      }).catch(() => {/* silent */});
+    }
   }, [id, router]);
 
   const fetchApplicants = useCallback(async () => {
@@ -114,6 +146,22 @@ export default function EventDetailPage() {
       fetchApplicants();
     } catch {
       alert("Durum güncellenirken hata oluştu.");
+    }
+  };
+
+  const saveRoute = async () => {
+    if (!event) return;
+    setSavingRoute(true);
+    try {
+      await api.put(`/api/v1/events/${event.id}`, {
+        waypoints: routeWaypoints.length > 0 ? routeWaypoints : null,
+        route_geojson: routeGeoJSON ?? null,
+      });
+      setEditingRoute(false);
+    } catch {
+      alert("Rota kaydedilemedi.");
+    } finally {
+      setSavingRoute(false);
     }
   };
 
@@ -244,7 +292,19 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {event.status === "open" && user?.role === "volunteer" && !isCreator && (
+        {event.status === "open" && new Date(event.end_date) < new Date() && user?.role === "volunteer" && !isCreator && (
+          <div className="border-t border-gray-100 pt-8">
+            <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-xl px-5 py-4">
+              <span className="text-slate-400 text-xl leading-none">🕒</span>
+              <div>
+                <p className="text-sm font-semibold text-slate-700">Bu etkinlik sona erdi</p>
+                <p className="text-sm text-slate-500 mt-1">Tarihi geçmiş etkinliklere başvuru yapılamaz.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {event.status === "open" && new Date(event.end_date) >= new Date() && user?.role === "volunteer" && !isCreator && (
           <div className="border-t border-gray-100 pt-8">
             {applied ? (
               <div className="bg-green-50 text-green-700 px-6 py-4 rounded-xl text-sm font-medium border border-green-100">
@@ -288,7 +348,149 @@ export default function EventDetailPage() {
             </p>
           </div>
         )}
+
+        {isAuthenticated && user?.role === "organizer" && !isCreator && event.status === "open" && (
+          <div className="border-t border-gray-100 pt-8">
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
+              <span className="text-amber-500 text-xl leading-none">⚠️</span>
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Bu etkinliğe başvuramazsınız</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  Etkinliklere yalnızca <span className="font-semibold">gönüllü</span> hesapları başvurabilir.
+                  Başvurmak için gönüllü hesabıyla giriş yapın.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Volunteer: route view + location share ── */}
+        {isAuthenticated && user?.role === "volunteer" && !isCreator && (
+          <div className="border-t border-gray-100 pt-8 space-y-5">
+            <VolunteerLocationShare />
+
+            {/* Approved volunteer sees the mission route */}
+            {myAppStatus === "approved" && routeWaypoints.length > 0 ? (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Route className="w-4 h-4 text-emerald-600" />
+                  <p className="text-sm font-semibold text-slate-800">Görev Rotası</p>
+                </div>
+                <RouteViewer waypoints={routeWaypoints} routeGeoJSON={routeGeoJSON} />
+              </div>
+            ) : myAppStatus === "approved" && routeWaypoints.length === 0 ? (
+              <p className="text-sm text-slate-400 italic">
+                Organizatör henüz bir rota çizmedi.
+              </p>
+            ) : (
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-center">
+                <Route className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-medium text-slate-600">
+                  Rotayı görmek için başvurun ve onaylanın
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Yalnızca onaylanan gönüllüler etkinlik rotasını görebilir.
+                </p>
+              </div>
+            )}
+
+            {/* Personal directions (always visible if event has coords) */}
+            {event.latitude && event.longitude && (
+              <details
+                className="group"
+                onToggle={(e) => {
+                  if ((e.target as HTMLDetailsElement).open) {
+                    setTimeout(() => routeMapRef.current?.invalidateSize(), 200);
+                  }
+                }}
+              >
+                <summary className="cursor-pointer flex items-center gap-2 text-sm font-semibold text-emerald-700 list-none">
+                  <Navigation className="w-4 h-4" />
+                  Konumdan Yol Tarifi Al
+                  <span className="text-slate-400 font-normal text-xs group-open:hidden">(tıkla)</span>
+                </summary>
+                <div className="mt-3">
+                  <RouteMap
+                    mapRef={routeMapRef}
+                    destLat={event.latitude}
+                    destLng={event.longitude}
+                    destName={event.location_name || event.title}
+                  />
+                </div>
+              </details>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Organizer: route editor + live tracking */}
+      {isCreator && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 mb-6 space-y-8">
+
+          {/* Mission route */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Route className="w-5 h-5 text-emerald-600" />
+                <h2 className="text-xl font-bold text-gray-900">Görev Rotası</h2>
+              </div>
+              {!editingRoute ? (
+                <button
+                  onClick={() => setEditingRoute(true)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:text-emerald-900 px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition"
+                >
+                  <Pencil className="w-4 h-4" />
+                  {routeWaypoints.length > 0 ? "Rotayı Düzenle" : "Rota Oluştur"}
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditingRoute(false)}
+                    className="text-sm text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    onClick={saveRoute}
+                    disabled={savingRoute}
+                    className="text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-1.5 rounded-lg transition disabled:opacity-50"
+                  >
+                    {savingRoute ? "Kaydediliyor…" : "Kaydet"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {editingRoute ? (
+              <RouteEditor
+                initialWaypoints={routeWaypoints}
+                onChange={(wps, geo) => {
+                  setRouteWaypoints(wps);
+                  setRouteGeoJSON(geo);
+                }}
+              />
+            ) : routeWaypoints.length > 0 ? (
+              <RouteViewer waypoints={routeWaypoints} routeGeoJSON={routeGeoJSON} />
+            ) : (
+              <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl text-slate-400">
+                <Route className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Henüz rota çizilmedi. "Rota Oluştur" ile başlayın.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Live volunteer tracking */}
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Gönüllü Konum Takibi</h2>
+            <VolunteerTrackingMap
+              eventId={event.id}
+              eventLat={event.latitude}
+              eventLng={event.longitude}
+              eventName={event.title}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Organizatör için Başvurular Listesi */}
       {isCreator && (

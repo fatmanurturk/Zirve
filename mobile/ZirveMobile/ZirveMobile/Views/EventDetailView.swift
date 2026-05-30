@@ -220,6 +220,46 @@ struct EventDetailView: View {
                             }
                         }
                         .padding(.bottom, 30)
+                    } else if authManager.currentUser?.role.lowercased() == "organizer" {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .font(.title3)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Bu etkinliğe başvuramazsınız")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.orange)
+                                Text("Etkinliklere yalnızca gönüllü hesapları başvurabilir. Başvurmak için gönüllü hesabıyla giriş yapın.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding()
+                        .background(Color.orange.opacity(0.1))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.orange.opacity(0.3), lineWidth: 1))
+                        .cornerRadius(14)
+                        .padding(.bottom, 30)
+                    } else if isPastEvent(event.end_date) {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "clock.fill")
+                                .foregroundColor(.secondary)
+                                .font(.title3)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Bu etkinlik sona erdi")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+                                Text("Tarihi geçmiş etkinliklere başvuru yapılamaz.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.2), lineWidth: 1))
+                        .cornerRadius(14)
+                        .padding(.bottom, 30)
                     } else {
                         NavigationLink(destination: EventApplicationView(event: event)) {
                             HStack(spacing: 8) {
@@ -250,6 +290,13 @@ struct EventDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
     
+    private func isPastEvent(_ isoString: String) -> Bool {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = formatter.date(from: isoString) else { return false }
+        return date < Date()
+    }
+
     private func formatDate(_ isoString: String) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

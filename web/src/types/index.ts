@@ -19,6 +19,13 @@ export type EventCategory = "hiking" | "climbing" | "skiing" | "cycling" | "othe
 export type EventDifficulty = "easy" | "medium" | "hard" | "expert";
 export type EventStatus = "open" | "closed" | "completed";
 
+export interface Waypoint {
+  order: number;
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 export interface Event {
   id: string;
   title: string;
@@ -41,6 +48,9 @@ export interface Event {
   created_at: string;
   cover_photo_url?: string;
   photos?: EventPhoto[];
+  waypoints?: Waypoint[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  route_geojson?: any;
 }
 
 export interface EventListResponse {

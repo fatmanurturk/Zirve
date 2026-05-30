@@ -52,4 +52,6 @@ class Event(BaseModel):
     created_by_user: Mapped["User"] = relationship(back_populates="events_created")
     applications: Mapped[List["Application"]] = relationship(back_populates="event", cascade="all, delete-orphan")
     user_badges: Mapped[List["UserBadge"]] = relationship(back_populates="earned_from_event")
+    waypoints: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=None)
+    route_geojson: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=None)
     photos: Mapped[List["EventPhoto"]] = relationship(back_populates="event", cascade="all, delete-orphan", order_by="EventPhoto.display_order")
