@@ -8,6 +8,7 @@ from .application import Application, ApplicationStatus
 from .badge import Badge, UserBadge, BadgeCategory
 from .event_photo import EventPhoto
 from .volunteer_location import VolunteerLocation
+from .payment import Payment, PaymentStatus, PaymentProvider
 
 __all__ = [
     "Base", "BaseModel",
@@ -19,4 +20,5 @@ __all__ = [
     "Badge", "UserBadge", "BadgeCategory",
     "EventPhoto",
     "VolunteerLocation",
+    "Payment", "PaymentStatus", "PaymentProvider",
 ]

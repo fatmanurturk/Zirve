@@ -13,6 +13,8 @@ from app.api.v1.volunteers import router as volunteers_router
 from app.api.v1.stats import router as stats_router
 from app.api.v1.event_photos import router as event_photos_router
 from app.api.v1.locations import router as locations_router
+from app.api.v1.payments import router as payments_router
+from app.api.v1.card_validation import router as card_validation_router
 from app.core.config import get_settings
 from fastapi.staticfiles import StaticFiles
 import os
@@ -43,6 +45,8 @@ api_router.include_router(volunteers_router, prefix="/api/v1")
 api_router.include_router(organizations_router, prefix="/api/v1")
 api_router.include_router(stats_router, prefix="/api/v1")
 api_router.include_router(locations_router, prefix="/api/v1")
+api_router.include_router(payments_router, prefix="/api/v1")
+api_router.include_router(card_validation_router, prefix="/api/v1")
 
 app.include_router(api_router)
 

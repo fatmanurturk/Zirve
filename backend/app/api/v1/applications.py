@@ -8,11 +8,16 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from decimal import Decimal
+
+from app.adapters.vakifbank_adapter import get_payment_gateway
 from app.core.dependencies import get_current_user
 from app.db.base import get_db
 from app.models.application import Application, ApplicationStatus
 from app.models.event import Event, EventStatus, EventDifficulty
 from app.models.user import User, UserRole
+from app.schemas.payment import CreatePaymentDto
+from app.services.payment_service import PaymentService
 from app.schemas.application import (
     ApplicationCreate,
     ApplicationListResponse,
@@ -63,6 +68,31 @@ async def apply_to_event(
     )
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status_code=409, detail="Bu etkinlige zaten basvurdunuz.")
+
+    # Ücretli etkinlik — ödeme önce alınır, başarısız olursa başvuru oluşturulmaz
+    if event.fee and Decimal(str(event.fee)) > Decimal("0.00"):
+        if not all([body.card_number, body.card_holder_name, body.expiry_month, body.expiry_year, body.cvv]):
+            raise HTTPException(
+                status_code=400,
+                detail="Bu etkinliğin katılım ücreti var. Lütfen kart bilgilerinizi girin.",
+            )
+        try:
+            gateway = get_payment_gateway()
+            await PaymentService(db, gateway).process_payment(
+                CreatePaymentDto(
+                    amount=Decimal(str(event.fee)),
+                    currency="TRY",
+                    card_number=body.card_number,
+                    card_holder_name=body.card_holder_name,
+                    expiry_month=body.expiry_month,
+                    expiry_year=body.expiry_year,
+                    cvv=body.cvv,
+                    extra_data={"event_id": str(event_id), "volunteer_id": str(current_user.id)},
+                )
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=402, detail=str(e))
+
     application = Application(
         event_id=event_id,
         volunteer_id=current_user.id,

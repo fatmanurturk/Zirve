@@ -11,6 +11,12 @@ from app.models.application import ApplicationStatus
 
 class ApplicationCreate(BaseModel):
     motivation_letter: Optional[str] = None
+    # Ücretli etkinlikler için kart bilgileri (event.fee > 0 ise backend doğrular)
+    card_number: Optional[str] = None
+    card_holder_name: Optional[str] = None
+    expiry_month: Optional[str] = None   # MM
+    expiry_year: Optional[str] = None    # YYYY
+    cvv: Optional[str] = None
 
 
 class ApplicationStatusUpdate(BaseModel):

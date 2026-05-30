@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     GROQ_API_URL: str = Field(default="https://api.groq.com/openai/v1/chat/completions")
     GROQ_MODEL: str = Field(default="llama-3.3-70b-versatile")
 
+    # VakıfBank Sanal POS
+    VAKIFBANK_API_URL: str = Field(default="https://sanalpos.vakifbank.com.tr/api/v1")
+    VAKIFBANK_API_KEY: str = Field(default="")
+    VAKIFBANK_MERCHANT_ID: str = Field(default="")
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):  # type: ignore[override]
