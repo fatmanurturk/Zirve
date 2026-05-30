@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 from uuid import UUID
 import enum
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base_model import BaseModel
+
+if TYPE_CHECKING:
+    from .event import Event
+    from .user import User
 
 class ApplicationStatus(enum.Enum):
     PENDING = "pending"

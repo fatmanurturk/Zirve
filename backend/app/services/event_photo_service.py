@@ -52,7 +52,8 @@ class EventPhotoService:
             raise HTTPException(status_code=400, detail="File too large (max 5MB)")
 
         # Save file
-        file_ext = file.filename.split(".")[-1]
+        original_name = file.filename or "upload"
+        file_ext = original_name.rsplit(".", 1)[-1] if "." in original_name else "jpg"
         file_name = f"{uuid.uuid4()}.{file_ext}"
         relative_path = f"events/{event_id}/{file_name}"
         await self.storage.save_file(file, relative_path)

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +12,6 @@ from app.core.dependencies import get_current_user
 from app.db.base import get_db
 from app.models.application import Application, ApplicationStatus
 from app.models.event import Event, EventStatus, EventDifficulty
-from app.models.volunteer import VolunteerProfile
 from app.models.user import User, UserRole
 from app.schemas.application import (
     ApplicationCreate,
@@ -20,6 +19,7 @@ from app.schemas.application import (
     ApplicationResponse,
     ApplicationStatusUpdate,
 )
+from app.services.application_service import ApplicationService
 
 router = APIRouter(tags=["applications"])
 
@@ -53,6 +53,8 @@ async def apply_to_event(
         raise HTTPException(status_code=404, detail="Etkinlik bulunamadi.")
     if event.status != EventStatus.OPEN:
         raise HTTPException(status_code=400, detail="Bu etkinlik basvuruya acik degil.")
+    if event.end_date.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Bu etkinligin tarihi gecmis, basvuru yapilamaz.")
     existing = await db.execute(
         select(Application).where(
             Application.event_id == event_id,
@@ -220,25 +222,13 @@ async def checkin_application(
     application = result.scalar_one_or_none()
     if application is None:
         raise HTTPException(status_code=404, detail="Basvuru bulunamadi.")
-    if application.status != ApplicationStatus.APPROVED:
-        raise HTTPException(status_code=400, detail="Sadece onaylı basvurular check-in yapilabilir.")
-    if application.checked_in:
-        raise HTTPException(status_code=409, detail="Bu gonullu zaten check-in yapildi.")
-    
-    application.checked_in = True
-    application.checked_in_at = datetime.now(timezone.utc)
-    
-    # Add impact score
-    score_to_add = DIFFICULTY_SCORES.get(event.difficulty, 0)
-    profile_result = await db.execute(
-        select(VolunteerProfile).where(VolunteerProfile.user_id == application.volunteer_id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    if profile:
-        profile.total_impact_score = (profile.total_impact_score or 0) + score_to_add
-        
-    await db.commit()
-    await db.refresh(application)
+
+    try:
+        svc = ApplicationService(db)
+        application = await svc.checkin(application, event)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     return _app_to_response(application)
 
 
@@ -264,23 +254,13 @@ async def undo_checkin(
     application = result.scalar_one_or_none()
     if application is None:
         raise HTTPException(status_code=404, detail="Basvuru bulunamadi.")
-    if not application.checked_in:
-        raise HTTPException(status_code=400, detail="Bu gonullu zaten check-in yapilmadi.")
-        
-    application.checked_in = False
-    application.checked_in_at = None
-    
-    # Deduct impact score
-    score_to_deduct = DIFFICULTY_SCORES.get(event.difficulty, 0)
-    profile_result = await db.execute(
-        select(VolunteerProfile).where(VolunteerProfile.user_id == application.volunteer_id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    if profile:
-        profile.total_impact_score = max(0, (profile.total_impact_score or 0) - score_to_deduct)
-        
-    await db.commit()
-    await db.refresh(application)
+
+    try:
+        svc = ApplicationService(db)
+        application = await svc.undo_checkin(application, event)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     return _app_to_response(application)
 
 

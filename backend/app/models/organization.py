@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 from uuid import UUID
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import Boolean, ForeignKey, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base_model import BaseModel
+
+if TYPE_CHECKING:
+    from .user import User
+    from .event import Event
+    from .organization_follower import OrganizationFollower
 
 class Organization(BaseModel):
     __tablename__ = "organizations"

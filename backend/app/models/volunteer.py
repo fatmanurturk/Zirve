@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 from uuid import UUID
 import enum
 from datetime import datetime
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import Boolean, Enum, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base_model import BaseModel
+
+if TYPE_CHECKING:
+    from .user import User
 
 class ExperienceLevel(enum.Enum):
     BEGINNER = "beginner"

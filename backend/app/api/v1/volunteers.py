@@ -10,10 +10,10 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_current_user
 from app.db.base import get_db
-from app.models.application import Application, ApplicationStatus
-from app.models.badge import UserBadge
 from app.models.user import User, UserRole
 from app.models.volunteer import VolunteerEquipment, VolunteerProfile
+from app.models.badge import UserBadge
+from app.services.volunteer_service import VolunteerService
 from app.schemas.badge import UserBadgeResponse
 from app.schemas.volunteer import (
     EquipmentCreate,
@@ -167,49 +167,9 @@ async def get_my_stats(
     db: DbSessionDep,
     current_user: CurrentUserDep,
 ) -> UserStatsResponse:
-    total_result = await db.execute(
-        select(func.count()).select_from(Application).where(
-            Application.volunteer_id == current_user.id
-        )
-    )
-    total_applications = total_result.scalar_one() or 0
-
-    approved_result = await db.execute(
-        select(func.count()).select_from(Application).where(
-            Application.volunteer_id == current_user.id,
-            Application.status == ApplicationStatus.APPROVED,
-        )
-    )
-    approved_applications = approved_result.scalar_one() or 0
-
-    checkin_result = await db.execute(
-        select(func.count()).select_from(Application).where(
-            Application.volunteer_id == current_user.id,
-            Application.checked_in.is_(True),
-        )
-    )
-    checked_in_count = checkin_result.scalar_one() or 0
-
-    badge_result = await db.execute(
-        select(func.count()).select_from(UserBadge).where(
-            UserBadge.user_id == current_user.id
-        )
-    )
-    badge_count = badge_result.scalar_one() or 0
-
-    profile_result = await db.execute(
-        select(VolunteerProfile).where(VolunteerProfile.user_id == current_user.id)
-    )
-    profile = profile_result.scalar_one_or_none()
-    total_impact_score = profile.total_impact_score if profile else 0
-
-    return UserStatsResponse(
-        total_applications=int(total_applications),
-        approved_applications=int(approved_applications),
-        checked_in_count=int(checked_in_count),
-        total_impact_score=int(total_impact_score),
-        badge_count=int(badge_count),
-    )
+    svc = VolunteerService(db)
+    stats = await svc.get_stats(current_user.id)
+    return UserStatsResponse(**stats)
 
 
 @router.get("/volunteers/me/badges", response_model=list[UserBadgeResponse])
