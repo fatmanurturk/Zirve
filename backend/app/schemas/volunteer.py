@@ -18,6 +18,7 @@ __all__ = [
     "EquipmentCreate",
     "UserStatsResponse",
     "PublicProfileResponse",
+    "OrganizerVolunteerView",
 ]
 
 
@@ -83,3 +84,17 @@ class PublicProfileResponse(BaseModel):
     experience_level: ExperienceLevel
     total_impact_score: int
     badge_count: int
+
+
+class OrganizerVolunteerView(BaseModel):
+    user_id: UUID
+    full_name: str
+    email: str
+    phone: Optional[str]
+    avatar_url: Optional[str]
+    city: Optional[str]
+    experience_level: Optional[ExperienceLevel]
+    total_impact_score: int
+    badge_count: int
+    bio: Optional[str]
+    emergency_contact: Optional[dict]

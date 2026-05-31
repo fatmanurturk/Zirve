@@ -10,7 +10,16 @@ struct EventPhoto: Identifiable, Codable {
     let is_cover: Bool
 }
 
-struct Event: Identifiable, Codable {
+struct Waypoint: Codable, Identifiable {
+    let order: Int
+    let lat: Double
+    let lng: Double
+    let label: String
+
+    var id: Int { order }
+}
+
+struct Event: Identifiable, Codable, Equatable, Hashable {
     let id: String
     let title: String
     let description: String?
@@ -28,6 +37,14 @@ struct Event: Identifiable, Codable {
     let organizer_name: String?
     let cover_photo_url: String?
     var photos: [EventPhoto]? = nil
+    var fee: Double? = nil
+    var is_free: Bool? = nil
+    var latitude: Double? = nil
+    var longitude: Double? = nil
+    var waypoints: [Waypoint]? = nil
+
+    static func == (lhs: Event, rhs: Event) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
 struct EventListResponse: Codable {

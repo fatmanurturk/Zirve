@@ -1,10 +1,24 @@
 import SwiftUI
+import MapKit
 
 struct EventDetailView: View {
     let event: Event
-    
+
     @EnvironmentObject var authManager: AuthManager
-    
+
+    private var hasRoute: Bool {
+        guard let wps = event.waypoints else { return false }
+        return !wps.isEmpty
+    }
+
+    private var isEventCreator: Bool {
+        authManager.currentUser?.id == event.created_by
+    }
+
+    private var isVolunteer: Bool {
+        authManager.currentUser?.role.lowercased() == "volunteer"
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -47,6 +61,39 @@ struct EventDetailView: View {
                         InfoCard(icon: "mappin.and.ellipse", title: "Konum", value: event.location_name ?? "Belirtilmedi")
                         InfoCard(icon: "bolt.fill", title: "Zorluk", value: event.difficulty.capitalized)
                     }
+
+                    // Ücret Bilgisi
+                    let isFree = event.is_free ?? true
+                    let fee = event.fee ?? 0.0
+                    HStack(spacing: 10) {
+                        Image(systemName: isFree ? "gift.fill" : "creditcard.fill")
+                            .font(.subheadline)
+                            .foregroundColor(isFree ? Color(red: 0.05, green: 0.45, blue: 0.3) : .orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Katılım Ücreti")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(isFree ? "Ücretsiz" : String(format: "₺%.2f", fee))
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                                .foregroundColor(isFree ? Color(red: 0.05, green: 0.45, blue: 0.3) : .orange)
+                        }
+                        Spacer()
+                        Text(isFree ? "ÜCRETSİZ" : "ÜCRETLİ")
+                            .font(.system(size: 10, weight: .black))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(isFree ? Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.12) : Color.orange.opacity(0.12))
+                            .foregroundColor(isFree ? Color(red: 0.05, green: 0.45, blue: 0.3) : .orange)
+                            .cornerRadius(8)
+                    }
+                    .padding(14)
+                    .background(Color(UIColor.secondarySystemGroupedBackground))
+                    .cornerRadius(14)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(isFree ? Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.2) : Color.orange.opacity(0.2), lineWidth: 1)
+                    )
 
                     // Kulüp & Organizatör Kartı
                     if let clubId = event.organization_id {
@@ -154,16 +201,31 @@ struct EventDetailView: View {
                     }
                     
                     Divider()
-                    
+
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Etkinlik Detayları")
                             .font(.headline)
                             .fontWeight(.bold)
-                        
+
                         Text(event.description ?? "Bu etkinlik için bir açıklama girilmemiştir.")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .lineSpacing(4)
+                    }
+
+                    // Rota Haritası (waypoint varsa)
+                    if hasRoute {
+                        EventRouteMapView(event: event)
+                    }
+
+                    // Konum Paylaşımı (gönüllü için)
+                    if isVolunteer, let token = authManager.accessToken {
+                        LocationSharingView(token: token)
+                    }
+
+                    // Canlı Gönüllü Takibi (organizatör / etkinlik sahibi için)
+                    if isEventCreator, let token = authManager.accessToken {
+                        VolunteerTrackingMapView(event: event, token: token)
                     }
 
                     if let photos = event.photos, !photos.isEmpty {
@@ -261,25 +323,51 @@ struct EventDetailView: View {
                         .cornerRadius(14)
                         .padding(.bottom, 30)
                     } else {
-                        NavigationLink(destination: EventApplicationView(event: event)) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "paperplane.fill")
-                                Text("Etkinliğe Başvur")
+                        VStack(spacing: 10) {
+                            // Ücretli etkinlik uyarısı
+                            let appIsFree = event.is_free ?? true
+                            let appFee = event.fee ?? 0.0
+                            if !appIsFree {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "creditcard.fill")
+                                        .foregroundColor(.orange)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Ücretli Etkinlik")
+                                            .font(.caption)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.orange)
+                                        Text("Başvuru sırasında \(String(format: "₺%.2f", appFee)) kart ödemesi alınacaktır.")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(12)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.orange.opacity(0.08))
+                                .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.orange.opacity(0.2), lineWidth: 1))
                             }
-                            .font(.headline)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                LinearGradient(
-                                    colors: [Color.green, Color.mint],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
+
+                            NavigationLink(destination: EventApplicationView(event: event)) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "paperplane.fill")
+                                    Text("Etkinliğe Başvur")
+                                }
+                                .font(.headline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.green, Color.mint],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
                                 )
-                            )
-                            .cornerRadius(16)
-                            .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 5)
+                                .cornerRadius(16)
+                                .shadow(color: .green.opacity(0.3), radius: 8, x: 0, y: 5)
+                            }
                         }
                         .padding(.bottom, 30)
                     }

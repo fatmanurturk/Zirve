@@ -73,7 +73,7 @@ class EventResponse(BaseModel):
     cover_photo_url: Optional[str] = None
     waypoints: Optional[List[dict]] = None
     route_geojson: Optional[Any] = None
-    fee: Decimal = Decimal("0.00")
+    fee: float = 0.0
     is_free: bool = True
 
 

@@ -16,7 +16,7 @@ class HomeViewModel: ObservableObject {
     @Published var applications: [ApplicationItem] = []
     @Published var isLoading = true
     
-    private let baseURL = "http://localhost:8000/api/v1"
+    private let baseURL = Config.baseURL
     
     func loadData(token: String?) async {
         isLoading = true
@@ -472,7 +472,7 @@ struct HomeEventCard: View {
                 Color(red: 0.93, green: 0.97, blue: 0.94)
                 
                 if let coverPhoto = event.cover_photo_url,
-                   let url = URL(string: "http://localhost:8000/uploads/\(coverPhoto)") {
+                   let url = URL(string: "(Config.serverURL)/uploads/\(coverPhoto)") {
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:

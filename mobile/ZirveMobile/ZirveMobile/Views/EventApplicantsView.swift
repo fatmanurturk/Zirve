@@ -52,7 +52,7 @@ struct EventApplicantsView: View {
     }
     
     private func fetchApplicants() async {
-        let baseURL = "http://localhost:8000/api/v1"
+        let baseURL = Config.baseURL
         guard let url = URL(string: "\(baseURL)/events/\(eventId)/applications") else { return }
         guard let token = authManager.accessToken else { return }
         
@@ -74,7 +74,7 @@ struct EventApplicantsView: View {
     }
     
     private func updateStatus(appId: String, status: String) {
-        let baseURL = "http://localhost:8000/api/v1"
+        let baseURL = Config.baseURL
         guard let url = URL(string: "\(baseURL)/events/\(eventId)/applications/\(appId)") else { return }
         guard let token = authManager.accessToken else { return }
         

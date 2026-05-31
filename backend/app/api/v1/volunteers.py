@@ -10,6 +10,9 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_current_user
 from app.db.base import get_db
+from app.models.application import Application
+from app.models.event import Event
+from app.models.organization import Organization
 from app.models.user import User, UserRole
 from app.models.volunteer import VolunteerEquipment, VolunteerProfile
 from app.models.badge import UserBadge
@@ -17,6 +20,7 @@ from app.services.volunteer_service import VolunteerService
 from app.schemas.badge import UserBadgeResponse
 from app.schemas.volunteer import (
     EquipmentCreate,
+    OrganizerVolunteerView,
     PublicProfileResponse,
     UserStatsResponse,
     VolunteerEquipmentResponse,
@@ -214,4 +218,58 @@ async def get_public_profile(
         experience_level=profile.experience_level,
         total_impact_score=profile.total_impact_score,
         badge_count=int(badge_count),
+    )
+
+
+@router.get("/volunteers/{user_id}/organizer-view", response_model=OrganizerVolunteerView)
+async def get_volunteer_organizer_view(
+    user_id: UUID,
+    db: DbSessionDep,
+    current_user: CurrentUserDep,
+) -> OrganizerVolunteerView:
+    if current_user.role != UserRole.ORGANIZER:
+        raise HTTPException(status_code=403, detail="Sadece organizatörler bu bilgilere erişebilir.")
+
+    # Organizatörün etkinliklerinden birine bu gönüllünün başvurmuş olması gerekir
+    # (created_by veya organization owner_id üzerinden kontrol)
+    app_check = await db.execute(
+        select(Application)
+        .join(Event, Event.id == Application.event_id)
+        .join(Organization, Organization.id == Event.organization_id)
+        .where(
+            Application.volunteer_id == user_id,
+            Organization.owner_id == current_user.id,
+        )
+        .limit(1)
+    )
+    if app_check.scalar_one_or_none() is None:
+        raise HTTPException(status_code=403, detail="Bu gönüllünün bilgilerine erişim yetkiniz yok.")
+
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Kullanici bulunamadi.")
+
+    profile_result = await db.execute(
+        select(VolunteerProfile).where(VolunteerProfile.user_id == user_id)
+    )
+    profile = profile_result.scalar_one_or_none()
+
+    badge_result = await db.execute(
+        select(func.count()).select_from(UserBadge).where(UserBadge.user_id == user_id)
+    )
+    badge_count = badge_result.scalar_one() or 0
+
+    return OrganizerVolunteerView(
+        user_id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        phone=user.phone,
+        avatar_url=user.avatar_url,
+        city=profile.city if profile else None,
+        experience_level=profile.experience_level if profile else None,
+        total_impact_score=profile.total_impact_score if profile else 0,
+        badge_count=int(badge_count),
+        bio=profile.bio if profile else None,
+        emergency_contact=profile.emergency_contact if profile else None,
     )

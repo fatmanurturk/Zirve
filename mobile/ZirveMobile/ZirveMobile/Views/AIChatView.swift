@@ -29,7 +29,7 @@ class AIChatViewModel: ObservableObject {
     @Published var inputText = ""
     @Published var isLoading = false
 
-    private let baseURL = "http://localhost:8000/api/v1"
+    private let baseURL = Config.baseURL
 
     let suggestions = [
         "Bu hafta açık etkinlikler neler?",

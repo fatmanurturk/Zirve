@@ -39,7 +39,7 @@ struct ProfileView: View {
     @State private var isLoadingExtras = false
 
     private let accentGreen = Color(red: 0.2, green: 0.5, blue: 0.2)
-    private let baseURL = "http://localhost:8000/api/v1"
+    private let baseURL = Config.baseURL
 
     var body: some View {
         NavigationStack {
@@ -69,7 +69,12 @@ struct ProfileView: View {
                         volunteerProfileCard(profile: profile)
                     }
 
-                    // MARK: - Başvuru Geçmişi
+                    // MARK: - Başvurularım Butonu
+                    if authManager.currentUser?.role.lowercased() == "volunteer" {
+                        myApplicationsButton
+                    }
+
+                    // MARK: - Başvuru Geçmişi (özet)
                     if !applications.isEmpty {
                         applicationsCard
                     }
@@ -420,6 +425,42 @@ struct ProfileView: View {
         case "team": return "🤝"
         case "milestone": return "🏆"
         default: return "🎖️"
+        }
+    }
+
+    // MARK: - Başvurularım NavigationLink
+    private var myApplicationsButton: some View {
+        NavigationLink(destination: MyApplicationsView().environmentObject(authManager)) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(accentGreen.opacity(0.12))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "doc.text.fill")
+                        .font(.headline)
+                        .foregroundColor(accentGreen)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Başvurularım")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    if let stats = authManager.userStats {
+                        Text("\(stats.total_applications) toplam başvuru")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(14)
+            .background(Color(UIColor.systemBackground))
+            .cornerRadius(16)
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.08), lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.03), radius: 6, x: 0, y: 2)
         }
     }
 

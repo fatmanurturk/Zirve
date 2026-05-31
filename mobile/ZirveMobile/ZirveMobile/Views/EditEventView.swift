@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 @MainActor
 class EditEventViewModel: ObservableObject {
@@ -6,7 +7,7 @@ class EditEventViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var successMessage: String?
     
-    private let baseURL = "http://localhost:8000/api/v1"
+    private let baseURL = Config.baseURL
     
     func updateEvent(eventId: String, token: String?, data: EventCreateData) async -> Bool {
         guard let token = token else { return false }
@@ -73,7 +74,8 @@ struct EditEventView: View {
     @State private var startDate: Date = Date()
     @State private var endDate: Date = Date()
     @State private var maxVolunteersString: String = ""
-    
+    @State private var waypoints: [Waypoint] = []
+    @State private var showRouteEditor = false
     @State private var showAlert = false
     
     let categories = [
@@ -123,7 +125,70 @@ struct EditEventView: View {
                 TextField("Maksimum Gönüllü Sayısı (Boş bırakılabilir)", text: $maxVolunteersString)
                     .keyboardType(.numberPad)
             }
-            
+
+            Section(header: Text("Etkinlik Rotası")) {
+                if waypoints.isEmpty {
+                    Button {
+                        showRouteEditor = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "map.fill")
+                                .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.3))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Rota Ekle")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                                Text("Gönüllüler için güzergah oluşturun")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } else {
+                    Button {
+                        showRouteEditor = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.3))
+                                .font(.title3)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("\(waypoints.count) durak")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                                Text(waypoints.prefix(2).map(\.label).joined(separator: " → ") + (waypoints.count > 2 ? " →…" : ""))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Text("Düzenle")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.3))
+                        }
+                    }
+
+                    RoutePreviewMap(waypoints: waypoints)
+                        .frame(height: 160)
+                        .cornerRadius(12)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+
+                    Button(role: .destructive) {
+                        waypoints = []
+                    } label: {
+                        Label("Rotayı Kaldır", systemImage: "trash")
+                            .font(.subheadline)
+                    }
+                }
+            }
+
             Section {
                 Button(action: submitForm) {
                     if viewModel.isLoading {
@@ -143,8 +208,9 @@ struct EditEventView: View {
         }
         .navigationTitle("Etkinliği Düzenle")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            loadEventData()
+        .onAppear { loadEventData() }
+        .sheet(isPresented: $showRouteEditor) {
+            RouteEditorView(savedWaypoints: $waypoints)
         }
         .alert(isPresented: $showAlert) {
             if let error = viewModel.errorMessage {
@@ -188,6 +254,8 @@ struct EditEventView: View {
         if let end = formatter.date(from: event.end_date) {
             endDate = end
         }
+
+        waypoints = event.waypoints ?? []
     }
     
     private func submitForm() {
@@ -196,18 +264,24 @@ struct EditEventView: View {
         
         let maxVol = Int(maxVolunteersString)
         
+        let firstWp = waypoints.first
+        let wpCreate = waypoints.isEmpty ? nil : waypoints.map {
+            WaypointCreate(order: $0.order, lat: $0.lat, lng: $0.lng, label: $0.label)
+        }
+
         let eventData = EventCreateData(
             title: title,
             description: description.isEmpty ? nil : description,
             category: category.lowercased(),
             difficulty: difficulty.lowercased(),
             location_name: locationName.isEmpty ? nil : locationName,
-            latitude: nil,
-            longitude: nil,
+            latitude: firstWp?.lat ?? event.latitude,
+            longitude: firstWp?.lng ?? event.longitude,
             start_date: formatter.string(from: startDate),
             end_date: formatter.string(from: endDate),
             max_volunteers: maxVol,
-            requirements: [:]
+            requirements: [:],
+            waypoints: wpCreate
         )
         
         Task {

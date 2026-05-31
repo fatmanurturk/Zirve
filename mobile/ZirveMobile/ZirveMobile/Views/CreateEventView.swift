@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 struct EventCreateData: Codable {
     let title: String
@@ -12,6 +13,14 @@ struct EventCreateData: Codable {
     let end_date: String
     let max_volunteers: Int?
     let requirements: [String: String]?
+    let waypoints: [WaypointCreate]?
+}
+
+struct WaypointCreate: Codable {
+    let order: Int
+    let lat: Double
+    let lng: Double
+    let label: String
 }
 
 @MainActor
@@ -20,7 +29,7 @@ class CreateEventViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var successMessage: String?
     
-    private let baseURL = "http://localhost:8000/api/v1"
+    private let baseURL = Config.baseURL
     
     func createEvent(token: String?, data: EventCreateData) async -> Bool {
         guard let token = token else { return false }
@@ -74,16 +83,17 @@ class CreateEventViewModel: ObservableObject {
 struct CreateEventView: View {
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var viewModel = CreateEventViewModel()
-    
+
     @State private var title = ""
     @State private var description = ""
     @State private var category = "HIKING"
     @State private var difficulty = "EASY"
     @State private var locationName = ""
     @State private var startDate = Date()
-    @State private var endDate = Date().addingTimeInterval(86400) // +1 day
+    @State private var endDate = Date().addingTimeInterval(86400)
     @State private var maxVolunteersString = ""
-    
+    @State private var waypoints: [Waypoint] = []
+    @State private var showRouteEditor = false
     @State private var showAlert = false
     
     let categories = [
@@ -134,7 +144,72 @@ struct CreateEventView: View {
                     TextField("Maksimum Gönüllü Sayısı (Boş bırakılabilir)", text: $maxVolunteersString)
                         .keyboardType(.numberPad)
                 }
-                
+
+                Section(header: Text("Etkinlik Rotası")) {
+                    if waypoints.isEmpty {
+                        Button {
+                            showRouteEditor = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "map.fill")
+                                    .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.3))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Rota Ekle")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Text("Gönüllüler için güzergah oluşturun")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    } else {
+                        // Rota özeti + düzenle
+                        Button {
+                            showRouteEditor = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.3))
+                                    .font(.title3)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("\(waypoints.count) durak eklendi")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Text(waypoints.prefix(2).map(\.label).joined(separator: " → ") + (waypoints.count > 2 ? " →…" : ""))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer()
+                                Text("Düzenle")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(Color(red: 0.1, green: 0.5, blue: 0.3))
+                            }
+                        }
+
+                        // Mini harita önizlemesi
+                        RoutePreviewMap(waypoints: waypoints)
+                            .frame(height: 160)
+                            .cornerRadius(12)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+
+                        Button(role: .destructive) {
+                            waypoints = []
+                        } label: {
+                            Label("Rotayı Kaldır", systemImage: "trash")
+                                .font(.subheadline)
+                        }
+                    }
+                }
+
                 Section {
                     Button(action: submitForm) {
                         if viewModel.isLoading {
@@ -153,6 +228,9 @@ struct CreateEventView: View {
                 }
             }
             .navigationTitle("Yeni Etkinlik")
+            .sheet(isPresented: $showRouteEditor) {
+                RouteEditorView(savedWaypoints: $waypoints)
+            }
             .alert(isPresented: $showAlert) {
                 if let error = viewModel.errorMessage {
                     return Alert(title: Text("Hata"), message: Text(error), dismissButton: .default(Text("Tamam")))
@@ -172,18 +250,24 @@ struct CreateEventView: View {
         
         let maxVol = Int(maxVolunteersString)
         
+        let firstWp = waypoints.first
+        let wpCreate = waypoints.isEmpty ? nil : waypoints.map {
+            WaypointCreate(order: $0.order, lat: $0.lat, lng: $0.lng, label: $0.label)
+        }
+
         let eventData = EventCreateData(
             title: title,
             description: description.isEmpty ? nil : description,
             category: category.lowercased(),
             difficulty: difficulty.lowercased(),
             location_name: locationName.isEmpty ? nil : locationName,
-            latitude: nil,
-            longitude: nil,
+            latitude: firstWp?.lat,
+            longitude: firstWp?.lng,
             start_date: formatter.string(from: startDate),
             end_date: formatter.string(from: endDate),
             max_volunteers: maxVol,
-            requirements: [:]
+            requirements: [:],
+            waypoints: wpCreate
         )
         
         Task {
@@ -203,6 +287,49 @@ struct CreateEventView: View {
         startDate = Date()
         endDate = Date().addingTimeInterval(86400)
         maxVolunteersString = ""
+        waypoints = []
+    }
+}
+
+// MARK: - Route Preview Map (mini, salt okunur)
+struct RoutePreviewMap: View {
+    let waypoints: [Waypoint]
+
+    private var initialPosition: MapCameraPosition {
+        let sorted = waypoints.sorted(by: { $0.order < $1.order })
+        guard !sorted.isEmpty else { return .automatic }
+        if sorted.count == 1 {
+            return .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: sorted[0].lat, longitude: sorted[0].lng),
+                span: .init(latitudeDelta: 0.05, longitudeDelta: 0.05)
+            ))
+        }
+        let lats = sorted.map(\.lat); let lngs = sorted.map(\.lng)
+        return .region(MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: (lats.min()! + lats.max()!) / 2, longitude: (lngs.min()! + lngs.max()!) / 2),
+            span: .init(latitudeDelta: (lats.max()! - lats.min()!) * 1.6 + 0.02, longitudeDelta: (lngs.max()! - lngs.min()!) * 1.6 + 0.02)
+        ))
+    }
+
+    private let accentGreen = Color(red: 0.1, green: 0.5, blue: 0.3)
+
+    var body: some View {
+        Map(initialPosition: initialPosition) {
+            ForEach(Array(waypoints.sorted(by: { $0.order < $1.order }).enumerated()), id: \.element.id) { idx, wp in
+                Annotation(wp.label, coordinate: CLLocationCoordinate2D(latitude: wp.lat, longitude: wp.lng), anchor: .bottom) {
+                    WaypointPin(order: wp.order, isFirst: idx == 0, isLast: idx == waypoints.count - 1)
+                }
+            }
+            if waypoints.count > 1 {
+                let coords = waypoints.sorted(by: { $0.order < $1.order }).map {
+                    CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lng)
+                }
+                MapPolyline(coordinates: coords)
+                    .stroke(accentGreen, style: StrokeStyle(lineWidth: 2.5, dash: [6, 3]))
+            }
+        }
+        .disabled(true)
+        .allowsHitTesting(false)
     }
 }
 

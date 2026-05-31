@@ -31,7 +31,7 @@ class ClubProfileViewModel: ObservableObject {
     @Published var isFollowLoading = false
     @Published var errorMessage: String?
 
-    private let baseURL = "http://localhost:8000/api/v1"
+    private let baseURL = Config.baseURL
 
     func toggleFollow(clubId: String, token: String?) async {
         guard let token = token, let url = URL(string: "\(baseURL)/organizations/\(clubId)/follow") else { return }

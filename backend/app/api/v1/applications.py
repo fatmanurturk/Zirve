@@ -218,7 +218,12 @@ async def my_applications(
 ) -> ApplicationListResponse:
     if current_user.role != UserRole.VOLUNTEER:
         raise HTTPException(status_code=403, detail="Sadece gonulluler kendi basvurularini gorebilir.")
-    query = select(Application).where(Application.volunteer_id == current_user.id)
+    query = (
+        select(Application, Event)
+        .join(Event, Application.event_id == Event.id)
+        .where(Application.volunteer_id == current_user.id)
+        .order_by(Application.applied_at.desc())
+    )
     count_query = select(func.count()).select_from(Application).where(Application.volunteer_id == current_user.id)
     if app_status is not None:
         query = query.where(Application.status == app_status)
@@ -226,8 +231,17 @@ async def my_applications(
     total_result = await db.execute(count_query)
     total = total_result.scalar_one() or 0
     result = await db.execute(query.offset(skip).limit(limit))
-    applications = result.scalars().all()
-    return ApplicationListResponse(items=[_app_to_response(a) for a in applications], total=int(total))
+    rows = result.all()
+    items = []
+    for app, event in rows:
+        resp = _app_to_response(app)
+        resp.event_title = event.title
+        resp.event_start_date = event.start_date
+        resp.event_location_name = event.location_name
+        resp.event_category = event.category.value if event.category else None
+        resp.event_difficulty = event.difficulty.value if event.difficulty else None
+        items.append(resp)
+    return ApplicationListResponse(items=items, total=int(total))
 
 
 @router.post("/events/{event_id}/applications/{application_id}/checkin", response_model=ApplicationResponse)

@@ -69,7 +69,7 @@ class AuthManager: ObservableObject {
         }
     }
     
-    private let baseURL = "http://localhost:8000/api/v1"
+    private let baseURL = Config.baseURL
     
     // MARK: - Response Modelleri
     struct TokenResponse: Codable {

@@ -128,7 +128,7 @@ struct PhotoUploaderView: View {
     }
 
     func uploadSinglePhoto(data: Data, token: String) async -> Bool {
-        let url = URL(string: "http://localhost:8000/api/v1/event-photos/\(eventId.uuidString.lowercased())")!
+        let url = URL(string: "(Config.baseURL)/event-photos/\(eventId.uuidString.lowercased())")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

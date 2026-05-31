@@ -6,7 +6,7 @@ class OrganizerDashboardViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
     
-    private let baseURL = "http://localhost:8000/api/v1"
+    private let baseURL = Config.baseURL
     
     func fetchMyEvents(token: String?) async {
         guard let token = token else { return }

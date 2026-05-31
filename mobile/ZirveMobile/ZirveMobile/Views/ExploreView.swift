@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 // MARK: - Network Manager
 @MainActor
@@ -7,7 +8,7 @@ class NetworkManager: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    private let baseURL = "http://localhost:8000/api/v1"
+    private let baseURL = Config.baseURL
     
     func fetchOpenEvents() async {
         isLoading = true
@@ -42,40 +43,38 @@ class NetworkManager: ObservableObject {
 
 // MARK: - ExploreView
 struct ExploreView: View {
+    @EnvironmentObject var authManager: AuthManager
     @StateObject private var networkManager = NetworkManager()
-    
+    @State private var showMap = false
+
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(UIColor.systemGroupedBackground)
-                    .ignoresSafeArea()
-                
+                Color(UIColor.systemGroupedBackground).ignoresSafeArea()
+
                 if networkManager.isLoading && networkManager.events.isEmpty {
                     ProgressView("Zirve'ye Bağlanılıyor...")
                 } else if let error = networkManager.errorMessage, networkManager.events.isEmpty {
                     VStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.largeTitle)
-                            .foregroundColor(.orange)
-                        Text(error)
-                            .multilineTextAlignment(.center)
-                            .padding()
+                            .font(.largeTitle).foregroundColor(.orange)
+                        Text(error).multilineTextAlignment(.center).padding()
                         Button("Tekrar Dene") {
-                            Task {
-                                await networkManager.fetchOpenEvents()
-                            }
+                            Task { await networkManager.fetchOpenEvents() }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.green)
+                        .buttonStyle(.borderedProminent).tint(.green)
                     }
                 } else if networkManager.events.isEmpty {
-                    Text("Şu an hiç açık etkinlik bulunmuyor.")
-                        .foregroundColor(.secondary)
+                    Text("Şu an hiç açık etkinlik bulunmuyor.").foregroundColor(.secondary)
+                } else if showMap {
+                    EventMapView(events: networkManager.events)
+                        .environmentObject(authManager)
+                        .ignoresSafeArea(edges: .bottom)
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 16) {
                             ForEach(networkManager.events) { event in
-                                NavigationLink(destination: EventDetailView(event: event)) {
+                                NavigationLink(destination: EventDetailView(event: event).environmentObject(authManager)) {
                                     EventRowView(event: event)
                                 }
                                 .buttonStyle(PlainButtonStyle())
@@ -83,15 +82,24 @@ struct ExploreView: View {
                         }
                         .padding()
                     }
-                    .refreshable {
-                        await networkManager.fetchOpenEvents()
-                    }
+                    .refreshable { await networkManager.fetchOpenEvents() }
                 }
             }
             .navigationTitle("Keşfet")
-            .task {
-                await networkManager.fetchOpenEvents()
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) { showMap.toggle() }
+                    } label: {
+                        Image(systemName: showMap ? "list.bullet" : "map.fill")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    .tint(Color(red: 0.1, green: 0.5, blue: 0.3))
+                    .disabled(networkManager.events.isEmpty)
+                }
             }
+            .task { await networkManager.fetchOpenEvents() }
         }
     }
 }
@@ -113,7 +121,7 @@ struct EventRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let coverPhoto = event.cover_photo_url,
-               let url = URL(string: "http://localhost:8000/uploads/\(coverPhoto)") {
+               let url = URL(string: "\(Config.serverURL)/uploads/\(coverPhoto)") {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
@@ -210,4 +218,5 @@ struct EventRowView: View {
 
 #Preview {
     ExploreView()
+        .environmentObject(AuthManager())
 }

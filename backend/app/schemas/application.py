@@ -39,6 +39,11 @@ class ApplicationResponse(BaseModel):
     created_at: datetime
     volunteer_name: Optional[str] = None
     volunteer_avatar_url: Optional[str] = None
+    event_title: Optional[str] = None
+    event_start_date: Optional[datetime] = None
+    event_location_name: Optional[str] = None
+    event_category: Optional[str] = None
+    event_difficulty: Optional[str] = None
 
 
 class ApplicationListResponse(BaseModel):
