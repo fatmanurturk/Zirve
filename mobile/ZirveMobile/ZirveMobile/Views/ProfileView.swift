@@ -34,6 +34,7 @@ struct ProfileView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var showEditProfile = false
     @State private var showClubSetup = false
+    @State private var showMyApplications = false
     @State private var userBadges: [UserBadgeItem] = []
     @State private var applications: [ApplicationHistory] = []
     @State private var isLoadingExtras = false
@@ -59,6 +60,11 @@ struct ProfileView: View {
                         statsGrid(stats: stats)
                     }
 
+                    // MARK: - Başvurularım Butonu (istatistiklerin hemen altında)
+                    if authManager.volunteerProfile != nil {
+                        myApplicationsButton
+                    }
+
                     // MARK: - Rozetler
                     if !userBadges.isEmpty {
                         badgesCard
@@ -67,11 +73,6 @@ struct ProfileView: View {
                     // MARK: - Gönüllü Profil Detayları
                     if let profile = authManager.volunteerProfile {
                         volunteerProfileCard(profile: profile)
-                    }
-
-                    // MARK: - Başvurularım Butonu
-                    if authManager.currentUser?.role.lowercased() == "volunteer" {
-                        myApplicationsButton
                     }
 
                     // MARK: - Başvuru Geçmişi (özet)
@@ -94,6 +95,10 @@ struct ProfileView: View {
             }
             .background(Color(UIColor.secondarySystemBackground).ignoresSafeArea())
             .navigationTitle("Profilim")
+            .navigationDestination(isPresented: $showMyApplications) {
+                MyApplicationsView()
+                    .environmentObject(authManager)
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showEditProfile = true }) {
@@ -428,9 +433,11 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Başvurularım NavigationLink
+    // MARK: - Başvurularım Butonu
     private var myApplicationsButton: some View {
-        NavigationLink(destination: MyApplicationsView().environmentObject(authManager)) {
+        Button {
+            showMyApplications = true
+        } label: {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
@@ -462,6 +469,7 @@ struct ProfileView: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.gray.opacity(0.08), lineWidth: 1))
             .shadow(color: Color.black.opacity(0.03), radius: 6, x: 0, y: 2)
         }
+        .buttonStyle(PlainButtonStyle())
     }
 
     // MARK: - Başvuru Geçmişi Kartı

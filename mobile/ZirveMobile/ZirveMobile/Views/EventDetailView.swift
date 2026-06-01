@@ -19,6 +19,14 @@ struct EventDetailView: View {
         authManager.currentUser?.role.lowercased() == "volunteer"
     }
 
+    @State private var showDeleteAlert = false
+    @State private var isDeleting = false
+    @State private var showDirectionsSheet = false
+    @State private var showLoginAlert = false
+    @State private var showLoginSheet = false
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -60,6 +68,45 @@ struct EventDetailView: View {
                         InfoCard(icon: "calendar", title: "Tarih", value: formatDate(event.start_date))
                         InfoCard(icon: "mappin.and.ellipse", title: "Konum", value: event.location_name ?? "Belirtilmedi")
                         InfoCard(icon: "bolt.fill", title: "Zorluk", value: event.difficulty.capitalized)
+                    }
+
+                    // Yol Tarifi Butonu
+                    if hasLocation {
+                        Button {
+                            showDirectionsSheet = true
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "location.fill")
+                                    .font(.subheadline)
+                                Text("Yol Tarifi Al")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .foregroundColor(Color(red: 0.05, green: 0.45, blue: 0.3))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.08))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.2), lineWidth: 1)
+                            )
+                        }
+                        .confirmationDialog(
+                            event.location_name ?? "Etkinlik Konumu",
+                            isPresented: $showDirectionsSheet,
+                            titleVisibility: .visible
+                        ) {
+                            Button("Apple Maps ile Aç") { openInAppleMaps() }
+                            if isGoogleMapsInstalled {
+                                Button("Google Maps ile Aç") { openInGoogleMaps() }
+                            }
+                            Button("İptal", role: .cancel) {}
+                        }
                     }
 
                     // Ücret Bilgisi
@@ -235,7 +282,68 @@ struct EventDetailView: View {
                     Spacer(minLength: 40)
                     
                     // Başvur veya Düzenle Butonu
-                    if authManager.currentUser?.id == event.created_by {
+                    if authManager.currentUser == nil {
+                        // Giriş yapılmamış
+                        VStack(spacing: 12) {
+                            HStack(alignment: .top, spacing: 12) {
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                    .font(.title3)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Başvurmak için giriş yapın")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Text("Bu etkinliğe başvurabilmek için hesabınıza giriş yapmanız gerekiyor.")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.06))
+                            .cornerRadius(14)
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.2), lineWidth: 1))
+
+                            HStack(spacing: 12) {
+                                Button {
+                                    showLoginSheet = true
+                                } label: {
+                                    Text("Giriş Yap")
+                                        .font(.headline).fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                        .cornerRadius(14)
+                                }
+
+                                NavigationLink(destination: RegisterView().environmentObject(authManager)) {
+                                    Text("Kayıt Ol")
+                                        .font(.headline).fontWeight(.bold)
+                                        .foregroundColor(Color(red: 0.05, green: 0.45, blue: 0.3))
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.1))
+                                        .cornerRadius(14)
+                                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(red: 0.05, green: 0.45, blue: 0.3).opacity(0.3), lineWidth: 1))
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                        .padding(.bottom, 30)
+                        .sheet(isPresented: $showLoginSheet) {
+                            NavigationStack {
+                                LoginView()
+                                    .environmentObject(authManager)
+                                    .toolbar {
+                                        ToolbarItem(placement: .navigationBarLeading) {
+                                            Button("Kapat") { showLoginSheet = false }
+                                        }
+                                    }
+                            }
+                        }
+                    } else if authManager.currentUser?.id == event.created_by {
                         VStack(spacing: 12) {
                             NavigationLink(destination: EventApplicantsView(eventId: event.id)) {
                                 HStack(spacing: 8) {
@@ -280,8 +388,41 @@ struct EventDetailView: View {
                                 .cornerRadius(16)
                                 .shadow(color: .orange.opacity(0.3), radius: 8, x: 0, y: 5)
                             }
+
+                            Button(role: .destructive) {
+                                showDeleteAlert = true
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if isDeleting {
+                                        ProgressView().tint(.red)
+                                    } else {
+                                        Image(systemName: "trash.fill")
+                                    }
+                                    Text(isDeleting ? "Siliniyor…" : "Etkinliği Sil")
+                                        .fontWeight(.bold)
+                                }
+                                .font(.headline)
+                                .foregroundColor(.red)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.red.opacity(0.08))
+                                .cornerRadius(16)
+                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.red.opacity(0.25), lineWidth: 1))
+                            }
+                            .disabled(isDeleting)
                         }
                         .padding(.bottom, 30)
+                        .alert("Etkinliği Sil", isPresented: $showDeleteAlert) {
+                            Button("Sil", role: .destructive) {
+                                Task {
+                                    isDeleting = true
+                                    await deleteEvent()
+                                }
+                            }
+                            Button("İptal", role: .cancel) {}
+                        } message: {
+                            Text("\"\(event.title)\" etkinliği kalıcı olarak silinecek. Bu işlem geri alınamaz.")
+                        }
                     } else if authManager.currentUser?.role.lowercased() == "organizer" {
                         HStack(alignment: .top, spacing: 12) {
                             Image(systemName: "exclamationmark.triangle.fill")
@@ -378,6 +519,54 @@ struct EventDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
     
+    // MARK: - Yol Tarifi Helpers
+
+    private var hasLocation: Bool {
+        (event.latitude != nil && event.longitude != nil) || event.location_name != nil
+    }
+
+    private var isGoogleMapsInstalled: Bool {
+        UIApplication.shared.canOpenURL(URL(string: "comgooglemaps://")!)
+    }
+
+    private func openInAppleMaps() {
+        if let lat = event.latitude, let lng = event.longitude {
+            let url = URL(string: "maps://?daddr=\(lat),\(lng)&dirflg=d")!
+            openURL(url)
+        } else if let name = event.location_name,
+                  let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            let url = URL(string: "maps://?daddr=\(encoded)&dirflg=d")!
+            openURL(url)
+        }
+    }
+
+    private func openInGoogleMaps() {
+        if let lat = event.latitude, let lng = event.longitude {
+            let url = URL(string: "comgooglemaps://?daddr=\(lat),\(lng)&directionsmode=driving")!
+            openURL(url)
+        } else if let name = event.location_name,
+                  let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            let url = URL(string: "comgooglemaps://?daddr=\(encoded)&directionsmode=driving")!
+            openURL(url)
+        }
+    }
+
+    private func deleteEvent() async {
+        guard let token = authManager.accessToken,
+              let url = URL(string: "\(Config.baseURL)/events/\(event.id)") else {
+            isDeleting = false
+            return
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let (_, response) = try? await URLSession.shared.data(for: req),
+           let http = response as? HTTPURLResponse, http.statusCode == 204 {
+            dismiss()
+        }
+        isDeleting = false
+    }
+
     private func isPastEvent(_ isoString: String) -> Bool {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

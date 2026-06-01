@@ -45,12 +45,31 @@ class OrganizerDashboardViewModel: ObservableObject {
     var activeEventsCount: Int {
         events.filter { $0.status.uppercased() == "OPEN" }.count
     }
+
+    func deleteEvent(eventId: String, token: String?) async -> Bool {
+        guard let token = token,
+              let url = URL(string: "\(baseURL)/events/\(eventId)") else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let (_, response) = try? await URLSession.shared.data(for: req),
+              let http = response as? HTTPURLResponse else { return false }
+        if http.statusCode == 204 {
+            await MainActor.run { events.removeAll { $0.id == eventId } }
+            return true
+        }
+        return false
+    }
 }
 
 struct OrganizerDashboardView: View {
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var viewModel = OrganizerDashboardViewModel()
-    
+
+    @State private var eventToDelete: Event?
+    @State private var showDeleteAlert = false
+    @State private var isDeleting = false
+
     private let accentGreen = Color(red: 0.05, green: 0.45, blue: 0.3)
     
     var body: some View {
@@ -117,12 +136,27 @@ struct OrganizerDashboardView: View {
                                 .cornerRadius(16)
                                 .padding(.horizontal, 20)
                             } else {
-                                LazyVStack(spacing: 16) {
+                                LazyVStack(spacing: 12) {
                                     ForEach(viewModel.events) { event in
-                                        NavigationLink(destination: EventDetailView(event: event)) {
-                                            EventRowView(event: event)
+                                        HStack(spacing: 10) {
+                                            NavigationLink(destination: EventDetailView(event: event)
+                                                .environmentObject(authManager)) {
+                                                EventRowView(event: event)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+
+                                            Button {
+                                                eventToDelete = event
+                                                showDeleteAlert = true
+                                            } label: {
+                                                Image(systemName: "trash.fill")
+                                                    .font(.system(size: 15, weight: .semibold))
+                                                    .foregroundColor(.red)
+                                                    .frame(width: 42, height: 42)
+                                                    .background(Color.red.opacity(0.1))
+                                                    .cornerRadius(12)
+                                            }
                                         }
-                                        .buttonStyle(PlainButtonStyle())
                                     }
                                 }
                                 .padding(.horizontal, 20)
@@ -136,8 +170,18 @@ struct OrganizerDashboardView: View {
                 }
             }
             .navigationBarHidden(true)
-            .task {
-                await viewModel.fetchMyEvents(token: authManager.accessToken)
+            .task { await viewModel.fetchMyEvents(token: authManager.accessToken) }
+            .alert("Etkinliği Sil", isPresented: $showDeleteAlert, presenting: eventToDelete) { event in
+                Button("Sil", role: .destructive) {
+                    Task {
+                        isDeleting = true
+                        await viewModel.deleteEvent(eventId: event.id, token: authManager.accessToken)
+                        isDeleting = false
+                    }
+                }
+                Button("İptal", role: .cancel) { eventToDelete = nil }
+            } message: { event in
+                Text("\"\(event.title)\" etkinliği kalıcı olarak silinecek. Bu işlem geri alınamaz.")
             }
         }
     }

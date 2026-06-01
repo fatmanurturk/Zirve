@@ -11,6 +11,10 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Etkinlik konumuna yol tarifi almak ve konum paylaşımı için GPS konumunuza erişim gereklidir.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
